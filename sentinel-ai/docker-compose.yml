@@ -1,0 +1,253 @@
+# SentinelAI - full stack, production mode.
+#
+#   bash scripts/development/docker-secrets.sh      # once: writes .env with random secrets (git-ignored)
+#   docker compose up -d --build                    # add `--profile ollama` for a local model
+#   bash scripts/development/docker-verify.sh       # verifies the running stack (health, isolation, fail-closed, ...)
+#
+# Every service runs with SENTINEL_ENV/NODE_ENV=production, so each one's own fail-closed configuration checks apply: a
+# missing secret, a fake antivirus or an RLS-bypassing database login makes that service refuse to start.
+#
+# Healthchecks use 127.0.0.1, not localhost: in Alpine images localhost resolves to ::1 first, while the servers bind IPv4.
+#
+# Networks: `backend` is internal (no route to the internet). Only the gateway and dashboard are published, on loopback.
+# Nothing else - not Postgres, not Redis, not the vault that returns plaintext - is reachable from the host. The gateway
+# (and only it, among backend services) also sits on `frontend`, which has egress: it must reach cloud AI providers.
+#
+# Hardening: every image built from this repository runs as a non-root user with a read-only root filesystem, no Linux
+# capabilities, no-new-privileges, and pid/memory limits (x-hardened). Third-party infrastructure images keep their own
+# entrypoints (they need to write data and drop privileges) and get no-new-privileges.
+#
+# Not a container on purpose:
+#   * ai-router    - a library compiled into the gateway (ADR-0005), not a service.
+#   * object store - uploads are never persisted (memory only), so there is nothing to store.
+name: sentinel-ai
+
+x-hardened: &hardened
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+  tmpfs: ["/tmp:size=64m,mode=1777"]
+
+x-python-health: &python-health
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 20s
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: sentinel                         # owner/superuser: used ONLY by the migrate job, never by the gateway
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/development/docker-secrets.sh}
+      POSTGRES_DB: sentinel
+    volumes: [pgdata:/var/lib/postgresql]
+    networks: [backend]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # No RDB/AOF: the token vault's retention mandate must also hold on disk. A password, so that no other container on
+    # the backend network can read, alter or flush the vault's (encrypted) entries. REDISCLI_AUTH lets redis-cli inside
+    # this container authenticate (healthcheck, diagnostics) without putting the password on a command line.
+    command: ["sh", "-c", "exec redis-server --save '' --appendonly no --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?run scripts/development/docker-secrets.sh}
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    networks: [backend]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # Real antivirus. First start downloads the signature database (a few minutes); the scanner fails closed until then.
+  clamav:
+    image: clamav/clamav:stable
+    networks: [backend, updates]                      # `updates` only so freshclam can fetch signatures
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+    restart: unless-stopped
+
+  # One-shot: schema migrations as the owner, then the restricted login role the gateway uses.
+  migrate:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    image: sentinel-ai/api:local
+    command: ["sh", "-c", "node db/migrate-pg.mjs && node db/provision-app-role.mjs"]
+    environment:
+      DATABASE_URL: postgresql://sentinel:${POSTGRES_PASSWORD}@postgres:5432/sentinel
+      APP_DB_USER: sentinel_api
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?run scripts/development/docker-secrets.sh}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [backend]
+    <<: *hardened
+    mem_limit: 256m
+    restart: "no"
+
+  token-vault:
+    build: { context: ./services/token-vault }
+    image: sentinel-ai/token-vault:local
+    <<: *hardened
+    mem_limit: 256m
+    environment:
+      SENTINEL_ENV: production
+      VAULT_BACKEND: redis
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      VAULT_TOKEN: ${VAULT_TOKEN:?run scripts/development/docker-secrets.sh}
+      VAULT_MASTER_KEYS: ${VAULT_MASTER_KEYS:?run scripts/development/docker-secrets.sh}
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8004/ready',timeout=4).status==200 else 1)"]
+      <<: *python-health
+    restart: unless-stopped
+
+  security-engine:
+    build: { context: ./services/security-engine }
+    image: sentinel-ai/security-engine:local
+    <<: *hardened
+    mem_limit: 512m
+    environment:
+      SENTINEL_ENV: production
+      SECURITY_ENGINE_TOKEN: ${SECURITY_ENGINE_TOKEN:?run scripts/development/docker-secrets.sh}
+      VAULT_URL: http://token-vault:8004
+      VAULT_TOKEN: ${VAULT_TOKEN}
+    depends_on:
+      token-vault: { condition: service_healthy }
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8001/ready',timeout=4).status==200 else 1)"]
+      <<: *python-health
+    restart: unless-stopped
+
+  document-scanner:
+    build: { context: ./services/document-scanner }
+    image: sentinel-ai/document-scanner:local
+    <<: *hardened
+    mem_limit: 1g
+    tmpfs: ["/tmp:size=256m,mode=1777"]                 # Tesseract and PDF parsing need scratch space
+    environment:
+      SENTINEL_ENV: production
+      DOC_SCANNER_TOKEN: ${DOCUMENT_SCANNER_TOKEN:?run scripts/development/docker-secrets.sh}
+      MALWARE_SCANNER: clamd
+      CLAMD_HOST: clamav
+      CLAMD_PORT: "3310"
+    depends_on:
+      clamav: { condition: service_healthy }
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8003/ready',timeout=8).status==200 else 1)"]
+      <<: *python-health
+    restart: unless-stopped
+
+  # Skeleton by design (ADR-0003: policy evaluation lives in the security engine). /ready truthfully reports 503, so its
+  # healthcheck is liveness only and NOTHING depends on it.
+  policy-engine:
+    build: { context: ./services/policy-engine }
+    image: sentinel-ai/policy-engine:local
+    <<: *hardened
+    mem_limit: 256m
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health',timeout=4).status==200 else 1)"]
+      <<: *python-health
+    restart: unless-stopped
+
+  api:
+    image: sentinel-ai/api:local
+    <<: *hardened
+    mem_limit: 512m
+    environment:
+      NODE_ENV: production
+      API_PORT: "4000"
+      # The restricted login provisioned by `migrate`. The gateway refuses to start in production on a role that bypasses RLS.
+      DATABASE_URL: postgresql://sentinel_api:${APP_DB_PASSWORD}@postgres:5432/sentinel
+      API_KEY_HASH_PEPPER: ${API_KEY_HASH_PEPPER:?run scripts/development/docker-secrets.sh}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?run scripts/development/docker-secrets.sh}
+      # Master key(s) sealing per-organization provider credentials (AES-256-GCM). Unset -> organizations cannot store keys.
+      PROVIDER_CREDENTIAL_KEYS: ${PROVIDER_CREDENTIAL_KEYS:-}
+      API_CORS_ORIGINS: http://localhost:3000
+      SIGNUP_ENABLED: ${SIGNUP_ENABLED:-true}
+      SECURITY_ENGINE_URL: http://security-engine:8001
+      SECURITY_ENGINE_TOKEN: ${SECURITY_ENGINE_TOKEN}
+      DOCUMENT_SCANNER_URL: http://document-scanner:8003
+      DOCUMENT_SCANNER_TOKEN: ${DOCUMENT_SCANNER_TOKEN}
+      VAULT_URL: http://token-vault:8004
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      security-engine: { condition: service_healthy }
+      document-scanner: { condition: service_healthy }
+      token-vault: { condition: service_healthy }
+    networks: [backend, frontend]
+    ports: ["127.0.0.1:4000:4000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  dashboard:
+    build: { context: ., dockerfile: apps/dashboard/Dockerfile }
+    image: sentinel-ai/dashboard:local
+    <<: *hardened
+    mem_limit: 512m
+    # Next.js may write its cache; nothing else in the image is writable.
+    tmpfs: ["/tmp:size=64m,mode=1777", "/app/apps/dashboard/.next/cache:size=64m,uid=1000,gid=1000"]
+    environment:
+      GATEWAY_URL: http://api:4000
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [frontend]
+    ports: ["127.0.0.1:3000:3000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/login >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  # Optional local model:  docker compose --profile ollama up -d   then set OLLAMA_BASE_URL/OLLAMA_MODEL in .env.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [ollama]
+    volumes: [ollama:/root/.ollama]
+    networks: [frontend]
+    restart: unless-stopped
+    # `ollama list` talks to the local server, so it fails until the API actually answers (not just until the process starts).
+    healthcheck: { test: ["CMD", "ollama", "list"], interval: 10s, timeout: 5s, retries: 12, start_period: 20s }
+
+networks:
+  backend:
+    internal: true            # no egress: engine, vault, scanner, databases cannot reach the internet
+  frontend: {}
+  updates: {}
+
+volumes:
+  pgdata:
+  ollama:

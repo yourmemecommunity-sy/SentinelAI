@@ -1,0 +1,36 @@
+{{- $fn := include "sentinel.fullname" . -}}
+# Schema migrations + provisioning of the restricted login role, as the database OWNER. A new Job per release revision;
+# the runner holds a PostgreSQL advisory lock, so retries and overlapping upgrades cannot race. Gateway pods wait for the
+# result in their wait-for-schema init container. The owner credentials exist only in this Job.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fn }}-migrate-{{ .Release.Revision }}
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+spec:
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: {{- include "sentinel.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: OnFailure
+      {{- include "sentinel.podSecurity" . | nindent 6 }}
+      containers:
+        - name: migrate
+          image: {{ include "sentinel.image" (dict "root" . "img" .Values.images.api) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: ["sh", "-c", "node db/migrate-pg.mjs && node db/provision-app-role.mjs"]
+          env:
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "POSTGRES_PASSWORD" "key" "postgres-password") | nindent 12 }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.postgres.ownerUser }}:$(POSTGRES_PASSWORD)@{{ include "sentinel.pgHost" . }}:{{ include "sentinel.pgPort" . }}/{{ .Values.postgres.database }}"
+            - { name: APP_DB_USER, value: {{ .Values.postgres.appUser | quote }} }
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "APP_DB_PASSWORD" "key" "app-db-password") | nindent 12 }}
+          {{- include "sentinel.containerSecurity" (dict "uid" 1000) | nindent 10 }}
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { memory: 256Mi } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes:
+        - { name: tmp, emptyDir: { medium: Memory, sizeLimit: 16Mi } }

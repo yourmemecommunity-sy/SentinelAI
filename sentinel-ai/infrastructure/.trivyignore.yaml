@@ -1,0 +1,22 @@
+# Trivy misconfiguration exceptions for the rendered Kubernetes manifests. Each one states WHY, so it can be re-judged.
+# Everything not listed here must pass: the verification script fails on any other MEDIUM+ finding, and the bundled
+# ClamAV exception is checked separately (only its three known findings are tolerated, only on that container).
+misconfigurations:
+  - id: AVD-KSV-0032
+    statement: >-
+      "Restrict images to an Azure Container Registry domain" is vendor-specific. The chart is registry-agnostic:
+      `global.imageRegistry` sets whatever registry an operator uses, and no image name is hard-coded to a vendor.
+  - id: AVD-KSV-0033
+    statement: Same as KSV0032, for Google Container Registry.
+  - id: AVD-KSV-0034
+    statement: >-
+      "Images must come from a private registry" cannot be satisfied by a chart that ships with public defaults
+      (postgres, redis, clamav) and does not know the operator's registry. Operators set `global.imageRegistry` and may
+      enforce this with their own admission policy.
+  - id: AVD-KSV-0035
+    statement: Same as KSV0034, for AWS ECR.
+  - id: AVD-KSV-0125
+    statement: >-
+      Same registry-policy family: the chart's default images come from public registries (postgres, redis, clamav,
+      and SentinelAI's own images before they are pushed anywhere). Operators point `global.imageRegistry` at their
+      mirror; enforcing it belongs in their admission policy, not in a portable chart.

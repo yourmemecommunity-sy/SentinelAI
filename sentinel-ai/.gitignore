@@ -1,0 +1,31 @@
+# dependencies / build
+node_modules/
+dist/
+.next/
+coverage/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+# secrets - never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/local/
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+# terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+*.tsbuildinfo

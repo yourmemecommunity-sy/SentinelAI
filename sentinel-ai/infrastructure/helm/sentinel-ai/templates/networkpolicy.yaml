@@ -1,0 +1,92 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $fn := include "sentinel.fullname" . -}}
+{{- $root := . -}}
+{{- $inst := .Release.Name -}}
+{{- /*
+  Default deny for every pod of this release, then one policy per component listing exactly the flows it needs:
+
+    dashboard        <- clients            -> api
+    api              <- clients, dashboard -> postgres, security-engine, document-scanner, token-vault, providers (443, public only)
+    security-engine  <- api                -> token-vault
+    token-vault      <- api, security-engine -> redis
+    document-scanner <- api                -> clamav
+    postgres         <- api, migrate
+    redis            <- token-vault
+    clamav           <- document-scanner   -> signature mirrors (80/443, public only)
+    migrate          ->  postgres
+  Every pod may resolve DNS.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fn }}-default-deny
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/instance: {{ $inst }} }
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {{- toYaml .Values.networkPolicy.dns.namespaceSelector | nindent 14 }}
+          podSelector:
+            matchLabels: {{- toYaml .Values.networkPolicy.dns.podSelector | nindent 14 }}
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+{{- $rules := list
+  (dict "c" "dashboard" "port" .Values.dashboard.port "from" (list "*clients*") "to" (list (dict "c" "api" "port" .Values.api.port)))
+  (dict "c" "api" "port" .Values.api.port "from" (list "*clients*" "dashboard")
+     "to" (list (dict "c" "postgres" "port" 5432) (dict "c" "security-engine" "port" .Values.securityEngine.port) (dict "c" "document-scanner" "port" .Values.documentScanner.port) (dict "c" "token-vault" "port" .Values.tokenVault.port)))
+  (dict "c" "security-engine" "port" .Values.securityEngine.port "from" (list "api") "to" (list (dict "c" "token-vault" "port" .Values.tokenVault.port)))
+  (dict "c" "token-vault" "port" .Values.tokenVault.port "from" (list "api" "security-engine") "to" (list (dict "c" "redis" "port" 6379)))
+  (dict "c" "document-scanner" "port" .Values.documentScanner.port "from" (list "api") "to" (list (dict "c" "clamav" "port" 3310)))
+  (dict "c" "postgres" "port" 5432 "from" (list "api" "migrate") "to" (list))
+  (dict "c" "redis" "port" 6379 "from" (list "token-vault") "to" (list))
+  (dict "c" "clamav" "port" 3310 "from" (list "document-scanner") "to" (list))
+  (dict "c" "migrate" "port" 0 "from" (list) "to" (list (dict "c" "postgres" "port" 5432)))
+-}}
+{{- range $rules }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fn }}-{{ .c }}
+  labels: {{- include "sentinel.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/instance: {{ $inst }}, app.kubernetes.io/component: {{ .c }} }
+  policyTypes: [Ingress, Egress]
+  {{- if .from }}
+  ingress:
+    {{- $port := .port }}
+    {{- range .from }}
+    {{- if eq . "*clients*" }}
+    - ports: [{ protocol: TCP, port: {{ $port }} }]
+      {{- with $root.Values.networkPolicy.ingressFrom }}
+      from: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- else }}
+    - from: {{- include "sentinel.np.peer" (dict "inst" $inst "c" .) | nindent 8 }}
+      ports: [{ protocol: TCP, port: {{ $port }} }]
+    {{- end }}
+    {{- end }}
+  {{- else }}
+  ingress: []
+  {{- end }}
+  egress:
+    {{- range .to }}
+    - to: {{- include "sentinel.np.peer" (dict "inst" $inst "c" .c) | nindent 8 }}
+      ports: [{ protocol: TCP, port: {{ .port }} }]
+    {{- end }}
+    {{- if and (eq .c "api") $root.Values.api.providerEgress.enabled }}
+    - to: [{ ipBlock: { cidr: 0.0.0.0/0, except: {{ toJson $root.Values.api.providerEgress.except }} } }]
+      ports: [{{- range $i, $p := $root.Values.api.providerEgress.ports }}{{ if $i }}, {{ end }}{ protocol: TCP, port: {{ $p }} }{{- end }}]
+    {{- end }}
+    {{- if eq .c "clamav" }}
+    - to: [{ ipBlock: { cidr: 0.0.0.0/0, except: {{ toJson $root.Values.api.providerEgress.except }} } }]
+      ports: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 80 }]
+    {{- end }}
+    {{- if not (or .to (eq .c "api") (eq .c "clamav")) }}
+    []
+    {{- end }}
+{{- end }}
+{{- end }}

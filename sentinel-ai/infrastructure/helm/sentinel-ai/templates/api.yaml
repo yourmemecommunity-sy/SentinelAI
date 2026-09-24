@@ -1,0 +1,80 @@
+{{- $fn := include "sentinel.fullname" . -}}
+{{- $v := .Values.api -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fn }}-api
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ $v.replicas }}
+  selector:
+    matchLabels: {{- include "sentinel.selector" (dict "root" . "c" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "sentinel.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      annotations:
+        checksum/config: {{ toJson .Values.api | sha256sum | trunc 16 }}
+    spec:
+      {{- include "sentinel.podSecurity" . | nindent 6 }}
+      initContainers:
+        # Waits (as the RESTRICTED role) until every migration this image ships with is applied, so a new gateway never
+        # serves traffic against an older schema, and the gateway pod never holds the database owner's credentials.
+        - name: wait-for-schema
+          image: {{ include "sentinel.image" (dict "root" . "img" .Values.images.api) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: ["node", "db/wait-for-schema.mjs"]
+          env:
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "APP_DB_PASSWORD" "key" "app-db-password") | nindent 12 }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.postgres.appUser }}:$(APP_DB_PASSWORD)@{{ include "sentinel.pgHost" . }}:{{ include "sentinel.pgPort" . }}/{{ .Values.postgres.database }}"
+          {{- include "sentinel.containerSecurity" (dict "uid" 1000) | nindent 10 }}
+          resources: { requests: { cpu: 10m, memory: 32Mi }, limits: { memory: 128Mi } }
+      containers:
+        - name: api
+          image: {{ include "sentinel.image" (dict "root" . "img" .Values.images.api) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports: [{ name: http, containerPort: {{ $v.port }} }]
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: API_PORT, value: "{{ $v.port }}" }
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "APP_DB_PASSWORD" "key" "app-db-password") | nindent 12 }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.postgres.appUser }}:$(APP_DB_PASSWORD)@{{ include "sentinel.pgHost" . }}:{{ include "sentinel.pgPort" . }}/{{ .Values.postgres.database }}"
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "API_KEY_HASH_PEPPER" "key" "api-key-hash-pepper") | nindent 12 }}
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "JWT_ACCESS_SECRET" "key" "jwt-access-secret") | nindent 12 }}
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "PROVIDER_CREDENTIAL_KEYS" "key" "provider-credential-keys" "optional" true) | nindent 12 }}
+            - { name: API_CORS_ORIGINS, value: {{ $v.corsOrigins | quote }} }
+            - { name: SIGNUP_ENABLED, value: {{ $v.signupEnabled | quote }} }
+            - { name: RATE_LIMIT_PER_MINUTE, value: {{ $v.rateLimitPerMinute | quote }} }
+            - { name: SECURITY_ENGINE_URL, value: "http://{{ $fn }}-security-engine:{{ .Values.securityEngine.port }}" }
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "SECURITY_ENGINE_TOKEN" "key" "security-engine-token") | nindent 12 }}
+            {{- if .Values.documentScanner.enabled }}
+            - { name: DOCUMENT_SCANNER_URL, value: "http://{{ $fn }}-document-scanner:{{ .Values.documentScanner.port }}" }
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "DOCUMENT_SCANNER_TOKEN" "key" "document-scanner-token") | nindent 12 }}
+            {{- end }}
+            - { name: VAULT_URL, value: "http://{{ $fn }}-token-vault:{{ .Values.tokenVault.port }}" }
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "VAULT_TOKEN" "key" "vault-token") | nindent 12 }}
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "GEMINI_API_KEY" "key" "gemini-api-key" "optional" true) | nindent 12 }}
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "OPENAI_API_KEY" "key" "openai-api-key" "optional" true) | nindent 12 }}
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "ANTHROPIC_API_KEY" "key" "anthropic-api-key" "optional" true) | nindent 12 }}
+            {{- with $v.ollama }}{{ if and .baseUrl .model }}
+            - { name: OLLAMA_BASE_URL, value: {{ .baseUrl | quote }} }
+            - { name: OLLAMA_MODEL, value: {{ .model | quote }} }
+            {{- end }}{{ end }}
+          {{- include "sentinel.containerSecurity" (dict "uid" 1000) | nindent 10 }}
+          {{- include "sentinel.probes" (dict "ready" "/ready" "live" "/health") | nindent 10 }}
+          resources: {{- toYaml $v.resources | nindent 12 }}
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes:
+        - { name: tmp, emptyDir: { medium: Memory, sizeLimit: 64Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-api
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "sentinel.selector" (dict "root" . "c" "api") | nindent 4 }}
+  ports: [{ name: http, port: {{ $v.port }}, targetPort: http }]

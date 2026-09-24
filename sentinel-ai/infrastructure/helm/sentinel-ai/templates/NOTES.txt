@@ -1,0 +1,17 @@
+SentinelAI {{ .Chart.AppVersion }} installed as "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+  Gateway:   service/{{ include "sentinel.fullname" . }}-api:{{ .Values.api.port }}
+{{- if .Values.dashboard.enabled }}
+  Dashboard: service/{{ include "sentinel.fullname" . }}-dashboard:{{ .Values.dashboard.port }}
+{{- end }}
+
+Gateway pods stay in Init (wait-for-schema) until the migration Job
+"{{ include "sentinel.fullname" . }}-migrate-{{ .Release.Revision }}" has applied the schema.
+{{- if or .Values.postgres.bundled.enabled .Values.redis.bundled.enabled }}
+
+NOTE: bundled PostgreSQL/Redis are for evaluation. Use managed services in production.
+{{- end }}
+{{- if not .Values.networkPolicy.enabled }}
+
+WARNING: networkPolicy.enabled=false - components are NOT isolated from each other.
+{{- end }}

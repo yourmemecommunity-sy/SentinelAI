@@ -1,0 +1,18 @@
+# LF everywhere, in the repository AND in every working tree.
+#
+# This is not cosmetic. The migration runner hashes each .sql file's bytes and refuses to run when an already-applied
+# migration has changed. With Git's autocrlf on Windows, a plain checkout rewrites those files to CRLF, every checksum
+# changes, and the runner correctly refuses to migrate - "migration 0005 was modified after being applied". The same
+# applies to shell scripts, which a CRLF checkout makes unrunnable inside containers and WSL.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.woff binary
+*.woff2 binary

@@ -1,0 +1,23 @@
+[project]
+name = "sentinelai"
+version = "0.1.0"
+description = "SentinelAI Python SDK - route AI requests through the SentinelAI security gateway"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []          # standard library only
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "mypy>=1.13,<2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["sentinelai*"]
+
+[tool.mypy]
+# Checked against the oldest supported Python, so annotations stay compatible with 3.9 users.
+python_version = "3.9"
+strict = true
+warn_unreachable = true

@@ -1,0 +1,10 @@
+# Secret scanning configuration (gitleaks v8): the default rules, with NO allow-list.
+#
+# Nothing in this repository needs an exception. The evaluation datasets store every secret-shaped value defanged
+# (split by an inert `[FAKE]` marker; see scripts/dataset/defang.py) and materialize it only in memory when the
+# evaluator runs; tests assemble secret-shaped strings at runtime. If a scan ever flags something, fix the source -
+# do not add an allow-list entry here.
+title = "SentinelAI"
+
+[extend]
+useDefault = true

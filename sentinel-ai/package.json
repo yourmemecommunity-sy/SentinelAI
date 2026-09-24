@@ -1,0 +1,30 @@
+{
+  "name": "sentinel-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SentinelAI - Security Gateway for Enterprise AI",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "validate:structure": "node scripts/development/validate-structure.mjs",
+    "test:structure": "node --test tests/unit/validate-structure.test.mjs",
+    "eval:security": "python scripts/security/run_evaluation.py --critical-only",
+    "test:security-engine": "python -m pytest services/security-engine/tests tests/security -q",
+    "build": "pnpm -r --workspace-concurrency=1 build",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @sentinelai/api exec vitest run tests/e2e",
+    "db:migrate": "node scripts/database/migrate.mjs",
+    "audit:node": "pnpm audit --prod --audit-level=high",
+    "db:migrate:pg": "node scripts/database/migrate-pg.mjs"
+  },
+  "devDependencies": {
+    "pg": "^8.12.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss@<8.5.23": ">=8.5.23"
+    }
+  }
+}

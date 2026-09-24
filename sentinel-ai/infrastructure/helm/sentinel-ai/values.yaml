@@ -1,0 +1,116 @@
+# SentinelAI Helm chart values.
+#
+# Production guidance:
+#   * Provide secrets through `secrets.existingSecret` (created by your secret manager / sealed-secrets / external-secrets),
+#     never through values files. See README.md for the required keys.
+#   * Use managed PostgreSQL and Redis (`postgres.external.*`, `redis.external.*`) and turn the bundled ones off. The bundled
+#     PostgreSQL/Redis/ClamAV exist for evaluation and CI clusters.
+#   * Keep networkPolicy.enabled=true; it is what confines each component to the flows it needs.
+
+global:
+  imageRegistry: ""                 # e.g. "registry.example.com/" (trailing slash); empty = image names as given
+  imagePullSecrets: []
+
+images:
+  api: { repository: sentinel-ai/api, tag: local }
+  dashboard: { repository: sentinel-ai/dashboard, tag: local }
+  securityEngine: { repository: sentinel-ai/security-engine, tag: local }
+  tokenVault: { repository: sentinel-ai/token-vault, tag: local }
+  documentScanner: { repository: sentinel-ai/document-scanner, tag: local }
+  pullPolicy: IfNotPresent
+
+secrets:
+  # Name of an existing Secret holding the keys listed in README.md. Required unless create=true.
+  existingSecret: ""
+  # Development only: create the Secret from `secrets.values` (every value is required; nothing is generated).
+  create: false
+  values: {}
+
+api:
+  replicas: 2
+  port: 4000
+  corsOrigins: "https://sentinel.example.com"
+  signupEnabled: false
+  rateLimitPerMinute: 600
+  # Operator-configured local model (optional). Cloud provider keys come from the Secret (gemini/openai/anthropic-api-key).
+  ollama: { baseUrl: "", model: "" }
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  # Egress the gateway needs to reach cloud AI providers. Private ranges and the cloud metadata endpoint are excluded, so a
+  # compromised or misconfigured gateway cannot be turned into an SSRF pivot into the cluster network or instance creds.
+  providerEgress:
+    enabled: true
+    ports: [443]
+    except: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10"]
+
+dashboard:
+  enabled: true
+  replicas: 2
+  port: 3000
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+securityEngine:
+  replicas: 2
+  port: 8001
+  resources:
+    requests: { cpu: 200m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+tokenVault:
+  replicas: 2
+  port: 8004
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { memory: 256Mi }
+
+documentScanner:
+  enabled: true
+  replicas: 1
+  port: 8003
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+postgres:
+  database: sentinel
+  ownerUser: sentinel               # runs migrations only; never used by the gateway
+  appUser: sentinel_api             # the restricted login the gateway uses (RLS enforced)
+  bundled:
+    enabled: true
+    image: postgres:18-alpine
+    storage: 5Gi
+    storageClassName: ""
+  external:
+    host: ""
+    port: 5432
+
+redis:
+  bundled:
+    enabled: true
+    image: redis:7-alpine
+  external:
+    host: ""
+    port: 6379
+
+clamav:
+  bundled:
+    enabled: true
+    image: clamav/clamav:stable
+    resources:
+      requests: { cpu: 200m, memory: 1Gi }
+      limits: { memory: 3Gi }
+  external:
+    host: ""
+    port: 3310
+
+networkPolicy:
+  enabled: true
+  # Where cluster DNS runs (egress to it is allowed for every pod).
+  dns:
+    namespaceSelector: { kubernetes.io/metadata.name: kube-system }
+    podSelector: { k8s-app: kube-dns }
+  # Who may reach the gateway and the dashboard (e.g. your ingress controller's namespace). Empty = any source.
+  ingressFrom: []

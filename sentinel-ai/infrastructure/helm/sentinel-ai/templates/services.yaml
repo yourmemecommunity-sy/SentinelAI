@@ -1,0 +1,81 @@
+{{- $fn := include "sentinel.fullname" . -}}
+{{- $root := . -}}
+{{/* Python services + dashboard share one shape; each entry: component, values, image, uid, env builder name. */}}
+{{- $components := list
+  (dict "c" "security-engine" "v" .Values.securityEngine "img" .Values.images.securityEngine "uid" 10001 "ready" "/ready" "live" "/health" "on" true)
+  (dict "c" "token-vault" "v" .Values.tokenVault "img" .Values.images.tokenVault "uid" 10001 "ready" "/ready" "live" "/health" "on" true)
+  (dict "c" "document-scanner" "v" .Values.documentScanner "img" .Values.images.documentScanner "uid" 10001 "ready" "/ready" "live" "/health" "on" .Values.documentScanner.enabled)
+  (dict "c" "dashboard" "v" .Values.dashboard "img" .Values.images.dashboard "uid" 1000 "ready" "/login" "live" "/login" "on" .Values.dashboard.enabled)
+-}}
+{{- range $components }}
+{{- if .on }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fn }}-{{ .c }}
+  labels: {{- include "sentinel.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ .c }}
+spec:
+  replicas: {{ .v.replicas }}
+  selector:
+    matchLabels: {{- include "sentinel.selector" (dict "root" $root "c" .c) | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "sentinel.labels" $root | nindent 8 }}
+        app.kubernetes.io/component: {{ .c }}
+    spec:
+      {{- include "sentinel.podSecurity" $root | nindent 6 }}
+      containers:
+        - name: {{ .c }}
+          image: {{ include "sentinel.image" (dict "root" $root "img" .img) }}
+          imagePullPolicy: {{ $root.Values.images.pullPolicy }}
+          ports: [{ name: http, containerPort: {{ .v.port }} }]
+          env:
+            {{- if eq .c "dashboard" }}
+            - { name: GATEWAY_URL, value: "http://{{ $fn }}-api:{{ $root.Values.api.port }}" }
+            {{- else }}
+            - { name: SENTINEL_ENV, value: production }
+            {{- end }}
+            {{- if eq .c "security-engine" }}
+            {{- include "sentinel.secretEnv" (dict "root" $root "name" "SECURITY_ENGINE_TOKEN" "key" "security-engine-token") | nindent 12 }}
+            - { name: VAULT_URL, value: "http://{{ $fn }}-token-vault:{{ $root.Values.tokenVault.port }}" }
+            {{- include "sentinel.secretEnv" (dict "root" $root "name" "VAULT_TOKEN" "key" "vault-token") | nindent 12 }}
+            {{- end }}
+            {{- if eq .c "token-vault" }}
+            - { name: VAULT_BACKEND, value: redis }
+            {{- include "sentinel.secretEnv" (dict "root" $root "name" "REDIS_PASSWORD" "key" "redis-password") | nindent 12 }}
+            - { name: REDIS_URL, value: "redis://:$(REDIS_PASSWORD)@{{ include "sentinel.redisHost" $root }}:{{ include "sentinel.redisPort" $root }}/0" }
+            {{- include "sentinel.secretEnv" (dict "root" $root "name" "VAULT_TOKEN" "key" "vault-token") | nindent 12 }}
+            {{- include "sentinel.secretEnv" (dict "root" $root "name" "VAULT_MASTER_KEYS" "key" "vault-master-keys") | nindent 12 }}
+            {{- end }}
+            {{- if eq .c "document-scanner" }}
+            {{- include "sentinel.secretEnv" (dict "root" $root "name" "DOC_SCANNER_TOKEN" "key" "document-scanner-token") | nindent 12 }}
+            - { name: MALWARE_SCANNER, value: clamd }
+            - { name: CLAMD_HOST, value: {{ include "sentinel.clamavHost" $root | quote }} }
+            - { name: CLAMD_PORT, value: {{ include "sentinel.clamavPort" $root | quote }} }
+            {{- end }}
+          {{- include "sentinel.containerSecurity" (dict "uid" .uid) | nindent 10 }}
+          {{- include "sentinel.probes" (dict "ready" .ready "live" .live) | nindent 10 }}
+          resources: {{- toYaml .v.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            {{- if eq .c "dashboard" }}
+            - { name: next-cache, mountPath: /app/apps/dashboard/.next/cache }
+            {{- end }}
+      volumes:
+        - { name: tmp, emptyDir: { medium: Memory, sizeLimit: {{ if eq .c "document-scanner" }}256Mi{{ else }}64Mi{{ end }} } }
+        {{- if eq .c "dashboard" }}
+        - { name: next-cache, emptyDir: { sizeLimit: 64Mi } }
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-{{ .c }}
+  labels: {{- include "sentinel.labels" $root | nindent 4 }}
+spec:
+  selector: {{- include "sentinel.selector" (dict "root" $root "c" .c) | nindent 4 }}
+  ports: [{ name: http, port: {{ .v.port }}, targetPort: http }]
+{{- end }}
+{{- end }}

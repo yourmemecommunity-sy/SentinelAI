@@ -1,0 +1,31 @@
+{
+  "name": "@sentinelai/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SentinelAI API gateway",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "start": "node dist/server.js",
+    "test:db:real": "vitest run tests/db"
+  },
+  "dependencies": {
+    "@sentinelai/ai-router": "workspace:*",
+    "@sentinelai/shared-types": "workspace:*",
+    "fastify": "^5.0.0",
+    "jose": "^6.2.12",
+    "pg": "^8.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.2.0",
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.23.13",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

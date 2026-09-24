@@ -1,0 +1,464 @@
+openapi: 3.1.0
+info:
+  title: SentinelAI API
+  version: 0.1.0
+  description: |
+    Implemented: the security-engine scan contract (`/v1/scan`, internal) and the gateway routes for security scan/check,
+    AI chat/generate, file scanning (`/v1/files/scan`), events, usage and policies (API-key auth), login/JWT, user and
+    team management (`/v1/users`, `/v1/invitations`, `/v1/teams`) and per-organization provider credentials
+    (`/v1/providers`). Routes marked (planned) are specified ahead of implementation.
+
+    Management routes (users, teams, invitations, providers, API keys) require a USER session (JWT): an API key is never
+    accepted for them, so a leaked key cannot create users, change roles or store provider credentials.
+    Wire format is snake_case JSON. Responses never contain matched sensitive values.
+servers:
+  - url: http://localhost:4000
+    description: API gateway
+  - url: http://localhost:8001
+    description: Security engine (implemented, internal only)
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+paths:
+  /health:
+    get: { summary: Liveness, security: [], responses: { "200": { description: alive } } }
+  /ready:
+    get: { summary: Readiness (503 = not ready; callers fail closed), security: [], responses: { "200": { description: ready }, "503": { description: not ready } } }
+  /v1/scan:
+    post:
+      summary: "[internal, security-engine] Scan text and return decision, evidence, risk and sanitized text"
+      security: [{ internalToken: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ScanRequest" } } }
+      responses:
+        "200": { description: scan result, content: { application/json: { schema: { $ref: "#/components/schemas/ScanResult" } } } }
+        "401": { description: invalid internal token }
+        "422": { description: invalid request or policy (callers must treat as BLOCK) }
+  /v1/security/scan:
+    post:
+      summary: Scan text under the organization policy (gateway; implemented)
+      description: Requires permission `scan:use`. The scan is audited before the result is returned; if it cannot be audited the response is 503 and no text is returned.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GatewayScanRequest" } } } }
+      responses:
+        "200": { description: "decision + evidence + event_id (BLOCK also returns 200 with sanitized_text null)", content: { application/json: { schema: { $ref: "#/components/schemas/ScanResult" } } } }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
+        "413": { description: payload too large }
+        "422": { description: invalid request }
+        "503": { description: audit unavailable (fail closed) }
+  /v1/security/check:
+    post:
+      summary: Allow/deny check (gateway; implemented)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GatewayScanRequest" } } } }
+      responses: { "200": { description: "{ allowed, decision, risk_level, failed_closed, event_id }" } }
+  /v1/ai/chat:
+    post:
+      summary: Secure chat proxy - scan input, send only sanitized text, scan output (gateway; implemented for provider gemini)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AiRequest" } } } }
+      responses:
+        "200": { description: model response after output policy, with security summary }
+        "403": { description: blocked (policy, unknown provider, or fail-closed), content: { application/json: { schema: { $ref: "#/components/schemas/BlockedError" } } } }
+        "502": { description: provider error (no content returned) }
+        "503": { description: audit unavailable (fail closed) }
+  /v1/ai/stream:
+    post:
+      summary: Secure streaming chat over Server-Sent Events (implemented)
+      description: |
+        Same input screening as /v1/ai/chat; the reply is scanned with a look-ahead before each piece is released, tokens minted by TOKENIZE
+        policies are hydrated after the scan, and the stream ends with a `done` event (or an `error` event). Failures before the first byte are
+        ordinary JSON responses. After the first byte a client must treat anything other than `done` as a failure.
+        See docs/security/streaming-and-tokenization.md.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AiStreamRequest" } } } }
+      responses:
+        "200":
+          description: "text/event-stream. Events: delta {text}; done {provider, model, hydration, security}; error {error, ...}"
+          content: { text/event-stream: { schema: { type: string } } }
+        "403": { description: blocked before streaming (policy, unknown provider, fail-closed), content: { application/json: { schema: { $ref: "#/components/schemas/BlockedError" } } } }
+        "413": { description: input too large }
+        "422": { description: invalid request }
+        "429": { description: too many concurrent streams for this caller (retry-after) }
+        "503": { description: audit unavailable (fail closed) }
+  /v1/ai/generate:
+    post:
+      summary: Secure generation proxy (gateway; implemented)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [provider, prompt], properties: { provider: { type: string }, model: { type: string }, prompt: { type: string } } } } } }
+      responses: { "200": { description: ok }, "403": { description: blocked }, "502": { description: provider error }, "503": { description: audit unavailable } }
+  /v1/auth/signup:
+    post:
+      summary: Create an organization and OWNER (disabled by default in production)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SignupRequest" } } } }
+      responses: { "201": { description: session, content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }, "403": { description: signup disabled }, "409": { description: account exists }, "422": { description: invalid or weak password }, "429": { description: rate limited } }
+  /v1/auth/login:
+    post:
+      summary: Email + password login (uniform 401 on any failure)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/LoginRequest" } } } }
+      responses: { "200": { description: session, content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }, "401": { description: invalid credentials }, "429": { description: rate limited } }
+  /v1/auth/refresh:
+    post:
+      summary: Rotate a refresh token (reuse revokes the whole family)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [refresh_token], additionalProperties: false, properties: { refresh_token: { type: string } } } } } }
+      responses: { "200": { description: session, content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }, "401": { description: invalid token } }
+  /v1/auth/logout:
+    post: { summary: Revoke the refresh-token family, security: [], responses: { "204": { description: always } } }
+  /v1/auth/me:
+    get: { summary: Current principal (JWT or API key), responses: { "200": { description: ok }, "401": { description: unauthorized } } }
+  /v1/files/scan:
+    post:
+      summary: Scan an uploaded file (implemented)
+      description: |
+        Body is the RAW file bytes (`Content-Type: application/octet-stream`), not multipart. Only the extension of `X-Filename` is used;
+        the name itself is never forwarded, stored or logged. Pipeline: type validation (magic bytes) -> malware scan -> extraction/OCR ->
+        the same PII/secret/injection engine and org policy as text -> decision. BLOCK is a decision (HTTP 200), not an error, and a blocked
+        result never carries text. The upload is held in memory only. Any failure to reach a safe verdict is a fail-closed BLOCK.
+      security: [{ apiKeyAuth: [] }, { bearerAuth: [] }]
+      parameters:
+        - { name: X-Filename, in: header, required: false, schema: { type: string }, description: "URL-encoded; only the extension is used" }
+        - { name: X-Application, in: header, required: false, schema: { type: string } }
+        - { name: X-Team, in: header, required: false, schema: { type: string } }
+        - { name: X-Environment, in: header, required: false, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/octet-stream: { schema: { type: string, format: binary } } }
+      responses:
+        "200":
+          description: Verdict
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event_id, decision, blocked, failed_closed, reason, file, findings, risk, detections, sanitized_text, policy_id]
+                properties:
+                  event_id: { type: [string, "null"] }
+                  decision: { $ref: "#/components/schemas/Action" }
+                  blocked: { type: boolean }
+                  failed_closed: { type: boolean }
+                  reason: { type: [string, "null"], description: "e.g. macros_present, pdf_active_content, malware_detected, scanner_unreachable" }
+                  file:
+                    type: object
+                    properties:
+                      sha256: { type: string }
+                      size: { type: integer }
+                      detected_type: { type: [string, "null"] }
+                      mime: { type: [string, "null"] }
+                      pages: { type: [integer, "null"] }
+                      ocr_used: { type: boolean }
+                  findings:
+                    type: array
+                    items: { type: object, properties: { type: { type: string }, severity: { type: string }, detail: { type: string } } }
+                  risk: { type: object }
+                  detections: { type: array, items: { type: object } }
+                  sanitized_text: { type: [string, "null"], description: "Null whenever blocked" }
+                  policy_id: { type: string }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
+        "413": { description: file larger than MAX_FILE_BYTES }
+        "415": { description: unsupported content type }
+        "422": { description: empty body or invalid headers }
+        "429": { description: rate limited (30 uploads per minute per client) }
+        "503": { description: the scan could not be audited, so no verdict is released }
+  /v1/events:
+    get: { summary: "List security events (filter by risk_level/action/event_type: scan, ai_request, ai_response, fail_closed, file_scan; cursor pagination) (implemented)", responses: { "200": { description: ok } } }
+  /v1/events/{id}:
+    get: { summary: Event detail (no raw content) (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { "200": { description: ok } } }
+  /v1/policies:
+    get: { summary: List policies (implemented), responses: { "200": { description: ok } } }
+    post: { summary: Create policy version 1 (validated; unsafe ALLOW rules rejected) (implemented), requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/Policy" } } } }, responses: { "201": { description: created }, "422": { description: invalid } } }
+  /v1/policies/{id}:
+    put: { summary: Create a new active version of a policy (immutable history) (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { "200": { description: ok } } }
+    delete: { summary: Deactivate a policy (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { "204": { description: deleted } } }
+  /v1/usage:
+    get: { summary: Usage metrics per day/provider (implemented), responses: { "200": { description: ok } } }
+  /v1/api-keys:
+    get: { summary: "List API keys of the organization, never their secret or hash (implemented; keys:manage, user session only)", responses: { "200": { description: ok } } }
+    post:
+      summary: |
+        Create an API key (implemented). The secret is returned EXACTLY ONCE, in this response; only a peppered hash is
+        stored. A caller may only grant a role whose permissions are a subset of their own, keys expire (default 90 days,
+        max 365), and each organization is capped at 100 active keys.
+      requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/ApiKeyRequest" } } } }
+      responses:
+        "201": { description: "created; the body carries `key`, which is never shown again" }
+        "403": { description: "forbidden (cannot_grant_role, user_session_required)" }
+        "409": { description: key_limit_reached }
+  /v1/api-keys/{id}:
+    delete:
+      summary: Revoke an API key immediately (implemented). Only keys whose role the caller could grant.
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "204": { description: revoked }, "403": { description: key_has_higher_privilege }, "404": { description: not found } }
+  /v1/users:
+    get: { summary: "List members (implemented; users:manage, user session only)", responses: { "200": { description: ok }, "403": { description: "forbidden (reason: user_session_required)" } } }
+  /v1/users/{id}:
+    patch:
+      summary: "Change a role or disable/enable a member (implemented). A caller may only act on, and grant, roles whose permissions are a subset of their own, and can never modify themselves. Takes effect on the target's NEXT request."
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/UserPatch" } } } }
+      responses:
+        "200": { description: updated }
+        "403": { description: "forbidden (cannot_modify_self, cannot_grant_role, user_has_higher_privilege)" }
+        "404": { description: "not found (also for a user of another organization)" }
+        "409": { description: "last_owner: an organization must keep at least one active OWNER" }
+    delete:
+      summary: Disable a member (implemented; soft delete - audit history keeps referring to a real user)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: disabled }, "403": { description: forbidden }, "404": { description: not found } }
+  /v1/invitations:
+    get: { summary: "List invitations without their tokens (implemented; users:manage)", responses: { "200": { description: ok } } }
+    post:
+      summary: Invite someone (implemented). The token is returned EXACTLY ONCE and stored only as an HMAC.
+      requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/InvitationRequest" } } } }
+      responses:
+        "201": { description: "created; the body carries `token`, which is never shown again" }
+        "403": { description: cannot_grant_role }
+        "409": { description: "already_member or invitation_pending" }
+  /v1/invitations/{id}:
+    delete: { summary: Revoke a pending invitation (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }], responses: { "204": { description: revoked }, "409": { description: not pending } } }
+  /v1/invitations/accept:
+    post:
+      summary: Accept an invitation and create the account (implemented). PUBLIC (no session), rate limited, single use.
+      security: []
+      requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/AcceptInvitation" } } } }
+      responses:
+        "201": { description: account created }
+        "400": { description: "invalid_invitation (invalid, expired, revoked or already used - deliberately uniform)" }
+        "409": { description: account_exists }
+        "422": { description: weak_password }
+  /v1/teams:
+    get: { summary: "List teams and their members (implemented; users:manage)", responses: { "200": { description: ok } } }
+    post: { summary: Create a team (grouping for reporting; NOT an authorization boundary) (implemented), responses: { "201": { description: created }, "409": { description: team_exists } } }
+  /v1/teams/{id}:
+    delete: { summary: Delete a team (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }], responses: { "204": { description: deleted } } }
+  /v1/teams/{id}/members/{userId}:
+    put: { summary: Add a member (idempotent) (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: userId, in: path, required: true, schema: { type: string, format: uuid } }], responses: { "204": { description: added }, "404": { description: unknown team or user } } }
+    delete: { summary: Remove a member (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: userId, in: path, required: true, schema: { type: string, format: uuid } }], responses: { "204": { description: removed }, "404": { description: not a member } } }
+  /v1/providers:
+    get:
+      summary: "Provider settings for this organization (implemented; providers:manage). Shows which key each provider uses and a 4-character hint - never the credential."
+      responses: { "200": { description: ok } }
+  /v1/providers/{provider}:
+    patch:
+      summary: Enable or disable a provider for this organization (implemented). A disabled provider is blocked as unknown_provider.
+      parameters: [{ name: provider, in: path, required: true, schema: { type: string } }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } } } } }
+      responses: { "200": { description: ok }, "404": { description: unknown provider } }
+  /v1/providers/{provider}/credential:
+    put:
+      summary: |
+        Store this organization's own API key for gemini/openai/anthropic (implemented). Write-only: sealed with
+        AES-256-GCM bound to organization+provider before it reaches the database, and never returned by any endpoint.
+        A stored credential that cannot be decrypted FAILS CLOSED - requests are blocked, never sent with another key.
+      parameters: [{ name: provider, in: path, required: true, schema: { type: string, enum: [gemini, openai, anthropic] } }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [api_key], properties: { api_key: { type: string, minLength: 16, maxLength: 512 } } } } } }
+      responses:
+        "204": { description: stored }
+        "404": { description: provider does not accept organization credentials }
+        "422": { description: malformed key (never echoed) }
+        "503": { description: "credential_storage_not_configured (no PROVIDER_CREDENTIAL_KEYS on this deployment)" }
+    delete:
+      summary: Remove the credential of this organization; requests fall back to the operator key if one is configured (implemented)
+      parameters: [{ name: provider, in: path, required: true, schema: { type: string, enum: [gemini, openai, anthropic] } }]
+      responses: { "204": { description: removed }, "404": { description: no stored credential } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    apiKeyAuth: { type: apiKey, in: header, name: X-Sentinel-Api-Key }
+    internalToken: { type: apiKey, in: header, name: X-Internal-Token }
+  schemas:
+    Severity: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+    Action: { type: string, enum: [ALLOW, HASH, MASK, TOKENIZE, REDACT, QUARANTINE, BLOCK] }
+    Direction: { type: string, enum: [INPUT, OUTPUT] }
+    RiskLevel: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+    EntityType:
+      type: string
+      enum: [EMAIL, PHONE, ADDRESS, DATE_OF_BIRTH, PAN, AADHAAR, PASSPORT, SSN, DRIVER_LICENSE, CREDIT_CARD, BANK_ACCOUNT, UPI, IFSC,
+             API_KEY, AWS_CREDENTIAL, GOOGLE_CREDENTIAL, GITHUB_TOKEN, JWT, OAUTH_TOKEN, PASSWORD, PRIVATE_KEY, CONNECTION_STRING,
+             HIGH_ENTROPY_SECRET, INTERNAL_URL, CONFIDENTIAL_MARKER, CUSTOM_CONFIDENTIAL,
+             PROMPT_INJECTION, SYSTEM_PROMPT_EXTRACTION, JAILBREAK, DATA_EXFILTRATION]
+    RequestContext:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id: { type: string, maxLength: 256 }
+        team: { type: string, maxLength: 256 }
+        application: { type: string, maxLength: 256 }
+        provider: { type: string, maxLength: 64 }
+        model: { type: string, maxLength: 128 }
+        environment: { type: string, maxLength: 64 }
+        ip: { type: string, maxLength: 64 }
+    TimeWindow:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties: { start: { type: string, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" }, end: { type: string, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" } }
+    RuleScope:
+      type: object
+      additionalProperties: false
+      properties:
+        users: { type: array, items: { type: string } }
+        teams: { type: array, items: { type: string } }
+        applications: { type: array, items: { type: string } }
+        providers: { type: array, items: { type: string } }
+        models: { type: array, items: { type: string } }
+        environments: { type: array, items: { type: string } }
+        ip_cidrs: { type: array, items: { type: string } }
+        time_window_utc: { $ref: "#/components/schemas/TimeWindow" }
+        directions: { type: array, items: { $ref: "#/components/schemas/Direction" } }
+    PolicyRule:
+      type: object
+      additionalProperties: false
+      required: [entity, action]
+      description: ALLOW is rejected for credentials, payment cards and threat entities.
+      properties:
+        entity: { $ref: "#/components/schemas/EntityType" }
+        action: { $ref: "#/components/schemas/Action" }
+        severity: { $ref: "#/components/schemas/Severity" }
+        min_confidence: { type: number, minimum: 0, maximum: 1, default: 0 }
+        scope: { $ref: "#/components/schemas/RuleScope" }
+    Policy:
+      type: object
+      additionalProperties: false
+      required: [policy_id]
+      properties:
+        policy_id: { type: string, minLength: 1, maxLength: 128 }
+        organization_id: { type: string, maxLength: 128 }
+        version: { type: integer, minimum: 1, default: 1 }
+        rules: { type: array, maxItems: 500, items: { $ref: "#/components/schemas/PolicyRule" } }
+    ScanRequest:
+      type: object
+      additionalProperties: false
+      required: [text, organization_id]
+      properties:
+        text: { type: string }
+        direction: { $ref: "#/components/schemas/Direction" }
+        organization_id: { type: string, minLength: 1, maxLength: 128 }
+        context: { $ref: "#/components/schemas/RequestContext" }
+        policy: { $ref: "#/components/schemas/Policy" }
+    Detection:
+      type: object
+      description: Evidence only. Never contains the matched value.
+      required: [entity, confidence, severity, location, detector, detector_version]
+      properties:
+        entity: { $ref: "#/components/schemas/EntityType" }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        severity: { $ref: "#/components/schemas/Severity" }
+        location: { type: object, required: [start, end], properties: { start: { type: integer }, end: { type: integer } } }
+        detector: { type: string }
+        detector_version: { type: string }
+        value_digest: { type: [string, "null"], description: keyed HMAC prefix for correlation }
+    RiskFactor:
+      type: object
+      required: [name, contribution, detail]
+      properties: { name: { type: string }, contribution: { type: number }, detail: { type: string } }
+    Risk:
+      type: object
+      required: [risk_score, risk_level, decision, factors]
+      properties:
+        risk_score: { type: integer, minimum: 0, maximum: 100 }
+        risk_level: { $ref: "#/components/schemas/RiskLevel" }
+        decision: { $ref: "#/components/schemas/Action" }
+        factors: { type: array, items: { $ref: "#/components/schemas/RiskFactor" } }
+    EntityAction:
+      type: object
+      required: [entity, action, count]
+      properties: { entity: { $ref: "#/components/schemas/EntityType" }, action: { $ref: "#/components/schemas/Action" }, count: { type: integer } }
+    ScanResult:
+      type: object
+      required: [request_id, decision, failed_closed, detections, entity_actions, risk, sanitized_text, policy_id, detector_version, latency_ms]
+      properties:
+        request_id: { type: string }
+        decision: { $ref: "#/components/schemas/Action" }
+        failed_closed: { type: boolean }
+        fail_closed_reason: { type: [string, "null"] }
+        detections: { type: array, items: { $ref: "#/components/schemas/Detection" } }
+        entity_actions: { type: array, items: { $ref: "#/components/schemas/EntityAction" } }
+        risk: { $ref: "#/components/schemas/Risk" }
+        sanitized_text: { type: [string, "null"], description: null whenever the decision withholds content (BLOCK/QUARANTINE) }
+        policy_id: { type: string }
+        detector_version: { type: string }
+        latency_ms: { type: number }
+    SignupRequest:
+      type: object
+      additionalProperties: false
+      required: [organization_name, email, password]
+      properties: { organization_name: { type: string, maxLength: 200 }, email: { type: string, format: email }, password: { type: string, minLength: 12, maxLength: 128 } }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties: { email: { type: string, format: email }, password: { type: string, maxLength: 128 } }
+    Session:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in, user]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { const: Bearer }
+        expires_in: { type: integer }
+        user: { type: object, properties: { id: { type: string }, organization_id: { type: string }, role: { enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] } } }
+    GatewayScanRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string }
+        direction: { $ref: "#/components/schemas/Direction" }
+        context: { type: object, additionalProperties: false, properties: { application: { type: string }, team: { type: string }, environment: { type: string }, model: { type: string } } }
+    AiRequest:
+      type: object
+      additionalProperties: false
+      required: [provider, messages]
+      properties:
+        provider: { type: string, pattern: "^[a-z][a-z0-9_-]{1,31}$", examples: [gemini] }
+        model: { type: string }
+        messages:
+          type: array
+          minItems: 1
+          items: { type: object, required: [role, content], properties: { role: { enum: [system, user, assistant] }, content: { type: string } } }
+        application: { type: string }
+        session_id: { type: string, pattern: "^[A-Za-z0-9_.:@-]{1,128}$", description: "Names a token-vault session so TOKENIZE tokens stay stable across turns and are hydrated in the reply. Namespaced per caller by the gateway." }
+        hydrate: { type: boolean, description: "false returns tokens un-hydrated" }
+    AiStreamRequest:
+      allOf:
+        - { $ref: "#/components/schemas/AiRequest" }
+        - type: object
+          properties:
+            mode: { enum: [holdback, buffered], description: "buffered releases nothing until the whole reply has been scanned" }
+    ApiKeyRequest:
+      type: object
+      required: [name, role]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] }
+        expires_in_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
+    UserPatch:
+      type: object
+      minProperties: 1
+      properties:
+        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] }
+        disabled: { type: boolean }
+    InvitationRequest:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] }
+        expires_in_hours: { type: integer, minimum: 1, maximum: 168, default: 72 }
+    AcceptInvitation:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string, pattern: "^sni_[A-Za-z0-9_-]{43}$" }
+        password: { type: string, minLength: 12, maxLength: 128 }
+    BlockedError:
+      type: object
+      required: [error, stage, decision, failed_closed, event_id]
+      properties:
+        error: { type: string, const: blocked }
+        stage: { enum: [input, output] }
+        decision: { $ref: "#/components/schemas/Action" }
+        failed_closed: { type: boolean }
+        reason: { type: [string, "null"] }
+        event_id: { type: [string, "null"] }

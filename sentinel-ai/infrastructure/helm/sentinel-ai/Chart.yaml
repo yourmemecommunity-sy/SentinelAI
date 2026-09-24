@@ -1,0 +1,8 @@
+apiVersion: v2
+name: sentinel-ai
+description: SentinelAI security gateway for enterprise AI - gateway, security engine, token vault, document scanner, dashboard.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+kubeVersion: ">=1.27.0-0"
+keywords: [ai-security, dlp, llm-gateway]

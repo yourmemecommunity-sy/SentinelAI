@@ -1,0 +1,170 @@
+{{- $fn := include "sentinel.fullname" . -}}
+{{- /* Bundled infrastructure for evaluation/CI clusters. Production: managed PostgreSQL/Redis, bundled.enabled=false. */ -}}
+{{- if .Values.postgres.bundled.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fn }}-postgres
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: {{ $fn }}-postgres
+  replicas: 1
+  selector:
+    matchLabels: {{- include "sentinel.selector" (dict "root" . "c" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "sentinel.labels" . | nindent 8 }}
+        app.kubernetes.io/component: postgres
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70                     # the postgres user of the alpine image
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.bundled.image }}
+          env:
+            - { name: POSTGRES_USER, value: {{ .Values.postgres.ownerUser | quote }} }
+            - { name: POSTGRES_DB, value: {{ .Values.postgres.database | quote }} }
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "POSTGRES_PASSWORD" "key" "postgres-password") | nindent 12 }}
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports: [{ name: pg, containerPort: 5432 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", {{ .Values.postgres.ownerUser | quote }}, "-d", {{ .Values.postgres.database | quote }}] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", {{ .Values.postgres.ownerUser | quote }}] }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { memory: 1Gi } }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: run, emptyDir: { medium: Memory, sizeLimit: 8Mi } }
+        - { name: tmp, emptyDir: { medium: Memory, sizeLimit: 64Mi } }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.postgres.bundled.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources: { requests: { storage: {{ .Values.postgres.bundled.storage }} } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-postgres
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "sentinel.selector" (dict "root" . "c" "postgres") | nindent 4 }}
+  ports: [{ name: pg, port: 5432, targetPort: pg }]
+{{- end }}
+{{- if .Values.redis.bundled.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fn }}-redis
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "sentinel.selector" (dict "root" . "c" "redis") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "sentinel.labels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999                    # the redis user of the alpine image
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: redis
+          image: {{ .Values.redis.bundled.image }}
+          # No RDB/AOF (the vault's retention mandate holds on disk too); password required from every client.
+          command: ["sh", "-c", "exec redis-server --save '' --appendonly no --requirepass \"$REDIS_PASSWORD\""]
+          env:
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "REDIS_PASSWORD" "key" "redis-password") | nindent 12 }}
+            {{- include "sentinel.secretEnv" (dict "root" . "name" "REDISCLI_AUTH" "key" "redis-password") | nindent 12 }}
+          ports: [{ name: redis, containerPort: 6379 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          readinessProbe: { exec: { command: ["redis-cli", "ping"] }, periodSeconds: 5 }
+          livenessProbe: { exec: { command: ["redis-cli", "ping"] }, initialDelaySeconds: 10, periodSeconds: 20 }
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { memory: 256Mi } }
+          volumeMounts: [{ name: data, mountPath: /data }]
+      volumes:
+        - { name: data, emptyDir: { medium: Memory, sizeLimit: 16Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-redis
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "sentinel.selector" (dict "root" . "c" "redis") | nindent 4 }}
+  ports: [{ name: redis, port: 6379, targetPort: redis }]
+{{- end }}
+{{- if and .Values.documentScanner.enabled .Values.clamav.bundled.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fn }}-clamav
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clamav
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "sentinel.selector" (dict "root" . "c" "clamav") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "sentinel.labels" . | nindent 8 }}
+        app.kubernetes.io/component: clamav
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: clamav
+          image: {{ .Values.clamav.bundled.image }}
+          ports: [{ name: clamd, containerPort: 3310 }]
+          # The image's entrypoint starts as root, prepares its directories and then drops to the clamav user; it gets
+          # only the capabilities that needs, and can never regain privileges.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL], add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE, FOWNER] }
+          startupProbe:                   # the first signature download takes minutes
+            exec: { command: ["clamdcheck.sh"] }
+            periodSeconds: 15
+            failureThreshold: 40
+          readinessProbe: { exec: { command: ["clamdcheck.sh"] }, periodSeconds: 30, timeoutSeconds: 10 }
+          livenessProbe: { exec: { command: ["clamdcheck.sh"] }, periodSeconds: 60, timeoutSeconds: 10, failureThreshold: 5 }
+          resources: {{- toYaml .Values.clamav.bundled.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-clamav
+  labels: {{- include "sentinel.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "sentinel.selector" (dict "root" . "c" "clamav") | nindent 4 }}
+  ports: [{ name: clamd, port: 3310, targetPort: clamd }]
+{{- end }}

@@ -1,0 +1,144 @@
+{
+  "dataset_version": "1.0",
+  "files": [
+    {
+      "file": "data-exfiltration/exfil_v1.jsonl",
+      "records": 20,
+      "sha256": "576494bc216bbdb1986e8aec02755a4a02fdb8f5d257c0a37c03f87c8291f63f",
+      "version": "1.0"
+    },
+    {
+      "file": "evaluation/benign_v1.jsonl",
+      "records": 50,
+      "sha256": "c842bff4ca6bb7868046009d7eacd524bce251bec96a4b642d73982193ad5f9e",
+      "version": "1.0"
+    },
+    {
+      "file": "financial/bank-account/account_v1.jsonl",
+      "records": 20,
+      "sha256": "c6dd57748372a23a435cc3573d9d74a7884b929b1fda010ee776bdf3dea12333",
+      "version": "1.0"
+    },
+    {
+      "file": "financial/credit-card/card_v1.jsonl",
+      "records": 30,
+      "sha256": "716f63547ae1e0b3efdf2f1077cce34e1a3d2f45707dce771f299ecfea76bd88",
+      "version": "1.0"
+    },
+    {
+      "file": "financial/payment/ifsc_v1.jsonl",
+      "records": 10,
+      "sha256": "ae8d86c2ee63af619b75d40de2c6b2a6fc9217ca71ab1dddcf3a24904666d069",
+      "version": "1.0"
+    },
+    {
+      "file": "financial/payment/upi_v1.jsonl",
+      "records": 20,
+      "sha256": "574be77570c8bf96c9cc22315c96542038f194b3994a6a1b4d2ec42cd165db47",
+      "version": "1.0"
+    },
+    {
+      "file": "jailbreak/jailbreak_v1.jsonl",
+      "records": 18,
+      "sha256": "f9353f1bf933c60c3e205b6b7231a6f2d2b73d8e43ed6e5d478b39b438f4e2ba",
+      "version": "1.0"
+    },
+    {
+      "file": "malicious-documents/doc_injection_v1.jsonl",
+      "records": 12,
+      "sha256": "5bb5f3f4cbe331474f5809d54ff8fbe941e9a52aff9644dc80021e07f4a5cb25",
+      "version": "1.0"
+    },
+    {
+      "file": "output-leakage/leak_v1.jsonl",
+      "records": 26,
+      "sha256": "69f79569a5e94d38a31bf3f9852e9ef0a8259d8b5d7d1f960f38d2d6d94d7e70",
+      "version": "1.0"
+    },
+    {
+      "file": "pii/aadhaar/aadhaar_v1.jsonl",
+      "records": 30,
+      "sha256": "a7e0efe9f922430dd4ffffeeca0f08ecd70b9af15067b1c6177d52b1d5f830b5",
+      "version": "1.0"
+    },
+    {
+      "file": "pii/email/email_v1.jsonl",
+      "records": 30,
+      "sha256": "100bec2714a1065df4373612a0ee4f68c481863f51172660e06c6a3c7cb9ffe4",
+      "version": "1.0"
+    },
+    {
+      "file": "pii/pan/pan_v1.jsonl",
+      "records": 30,
+      "sha256": "66053ef29cd4a622914b97072c3eb7c9c2c29a5fe81292ccc70fc411e1b74ee0",
+      "version": "1.0"
+    },
+    {
+      "file": "pii/passport/passport_v1.jsonl",
+      "records": 20,
+      "sha256": "35b5e40ab951519ce9e93d0730fb25a092950a6cf493493d71affe26cff83872",
+      "version": "1.0"
+    },
+    {
+      "file": "pii/phone/phone_v1.jsonl",
+      "records": 30,
+      "sha256": "a74fa53b0eac74bb562d2d1b4ad923976debdaa4e13273f9037a49852b718afd",
+      "version": "1.0"
+    },
+    {
+      "file": "prompt-injection/direct/direct_v1.jsonl",
+      "records": 24,
+      "sha256": "1df2cf97cf365a1349c901080a8155098708dec30b4ba827230b669c4d31138a",
+      "version": "1.0"
+    },
+    {
+      "file": "prompt-injection/encoded/encoded_v1.jsonl",
+      "records": 6,
+      "sha256": "65de8057676691230d203c3dd454caa2eda1f9850764b9dbb4dfcc33b232e1f7",
+      "version": "1.0"
+    },
+    {
+      "file": "prompt-injection/indirect/indirect_v1.jsonl",
+      "records": 12,
+      "sha256": "467d93da11fb86c2f9b5839266943adfb485aec27995a72c27ec47a1760d9916",
+      "version": "1.0"
+    },
+    {
+      "file": "prompt-injection/obfuscated/obfuscated_v1.jsonl",
+      "records": 28,
+      "sha256": "c1eb09234d6bbac1c2940b5e1c872ca6f956fb57c61dd1287ab5c5b0620d293d",
+      "version": "1.0"
+    },
+    {
+      "file": "secrets/api-keys/apikey_v1.jsonl",
+      "records": 36,
+      "sha256": "a8b0163a50724a33428fcbd38a5807bcd04333fc01a91fe1815ff930c1105b47",
+      "version": "1.0"
+    },
+    {
+      "file": "secrets/credentials/connection_v1.jsonl",
+      "records": 16,
+      "sha256": "1e57197a95a02d3e44f9e5ee616b28bec3b00df9f6d2002c032f345236a869b9",
+      "version": "1.0"
+    },
+    {
+      "file": "secrets/credentials/password_v1.jsonl",
+      "records": 24,
+      "sha256": "d86892967c7a110a3455e4f57aac8feb7386f8b50671db2898fd8806c4c22666",
+      "version": "1.0"
+    },
+    {
+      "file": "secrets/jwt/jwt_v1.jsonl",
+      "records": 20,
+      "sha256": "cb68b94eb536eb25d760866ce26b790d7706c1fb8084f735e4a263c2440ad890",
+      "version": "1.0"
+    },
+    {
+      "file": "secrets/private-keys/pem_v1.jsonl",
+      "records": 12,
+      "sha256": "9ab49efefb926392ebec839e98308967c8969e947f6b514f3ed6b3ab9005d476",
+      "version": "1.0"
+    }
+  ],
+  "generator": "scripts/dataset/generate_synthetic_datasets.py"
+}

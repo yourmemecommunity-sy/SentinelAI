@@ -1,0 +1,6 @@
+packages:
+  - "apps/*"
+  - "services/ai-router"
+  - "packages/shared-types"
+  - "packages/security-rules"
+  - "packages/sdk/javascript"
