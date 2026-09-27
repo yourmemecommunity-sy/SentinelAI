@@ -55,7 +55,8 @@ No product code changed in this run. Every existing test and check is intact; no
 * **D7** The workflow moved to the repository root.
 * **D8** CI installs PyYAML so the contract tests actually run.
 * **D9** k6 with an instant mock provider; the rate limit is lifted for the benchmark only and restored afterwards.
-* **D11** No root README added; `sentinel-ai/README.md` is the landing page (you can move it when publishing).
+* **D11 → D12** A root `README.md` now mirrors `sentinel-ai/README.md` (links re-rooted); **D13** the stray empty file
+  `Sentinel/SentinelAI` was removed.
 
 ## 5. Final numbers
 
