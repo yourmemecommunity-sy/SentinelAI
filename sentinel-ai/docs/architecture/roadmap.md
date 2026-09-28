@@ -15,11 +15,12 @@ they say "never built / never run", this table is the current truth.
 | 4. Real Redis: vault suite, TTL eviction, circuit breaker on a frozen server | **Done** — 112/112 + live breaker/TTL 8/8 | [04-redis.md](../verification/04-redis.md) |
 | 5. Real ClamAV 1.5.4 + Tesseract 5.5: EICAR blocked, screenshot email masked | **Done** — 133/133 scanner tests, live checks pass | [05-clamav-tesseract.md](../verification/05-clamav-tesseract.md) |
 | 6. Real AI provider | **Cloud providers BLOCKED** (no Gemini/OpenAI/Anthropic key anywhere); adapters remain mock-verified. **Ollama VERIFIED**: 14 real-server tests + both SDKs through the Docker stack (10/10); a recording proxy proves masking before the model and zero requests for a blocked secret | [06-real-provider.md](../verification/06-real-provider.md) |
-| 7. CI | **Done under `act`**: 8/8 jobs pass from the real repository root, `containers` steps run directly (Trivy 0 fixable HIGH/CRITICAL). Two defects fixed: the workflow sat where GitHub never reads it (moved to the repo root), and the OpenAPI contract tests were silently skipped in CI. **Not yet run on GitHub-hosted runners** (not pushed; the history must be squashed first — 79 gitleaks findings in commit `9ac9039`) | [07-ci.md](../verification/07-ci.md) |
+| 7. CI | **Passes on GitHub Actions**: runs #1 (`8068a23`) and #2 (`2968fb0`), all 9 jobs green including `containers` (checked via the GitHub API on 2026-09-28). Earlier verified under `act` (8/8). Two defects fixed on the way: the workflow sat where GitHub never reads it (moved to the repo root), and the OpenAPI contract tests were silently skipped in CI. History squashed to one clean commit before the first push | [07-ci.md](../verification/07-ci.md) |
 | 8. Independent evaluation (public datasets, no tuning) | **Done** — test splits: deepset/prompt-injections **1.7 %** detection / 0 % FP; jackhhao/jailbreak-classification **39.6 %** detection / 0 % FP (threat). The self-authored suite overstates coverage | [08-independent-evaluation.md](../verification/08-independent-evaluation.md) |
 | 9. Performance (k6, mocked instant provider) | **Done** — gateway adds p50 42 / p95 56 / p99 84 ms to a chat at 1 in flight; saturates at ≈44–68 chat req/s, ≈128 scan req/s on one laptop; 0 failed requests | [09-performance.md](../verification/09-performance.md) |
 | 10. README for recruiters | **Done** — problem statement, Mermaid architecture, verified-for-real table, evaluation + benchmark numbers, one-command quick start, limitations | [README.md](../../README.md) |
 | 11. Learning guide | **Done** — 8 design decisions (what / why / rejected alternative / what breaks / files / 3 interview Q&A each); states plainly that the multi-replica rate-limit fix is designed, not built | [LEARNING.md](../LEARNING.md) |
+| 12. Independent PII + secrets evaluation (public labelled data, no tuning) | **Done** — ai4privacy PII validation splits (25k records): email 98–99 %, phone 63 %, SSN 30–36 %, names/addresses ≈0 % (no NER); 47–68 % of PII-bearing records pass as ALLOW; card detector confuses IMEIs with cards. Samsung CredData (67.6k lines): **44.8 %** of real credentials detected, **14.2 %** FP on hard negatives. Aadhaar/PAN/UPI not in these datasets | [10-pii-secrets-evaluation.md](../verification/10-pii-secrets-evaluation.md) |
 
 ## Phase 0 - Architecture: **done**
 Repo structure, structure validator (+ tests), architecture docs, Mermaid diagrams, ERD, OpenAPI, threat model, security model,
@@ -46,7 +47,7 @@ env template, Docker Compose foundation, test foundation.
 | Dashboard pages NOT built (no backing API yet): providers, models, users, teams, applications, audit-logs, security-evaluation | **Not started** |
 | One-command local stack (engine + gateway on in-memory Postgres + dashboard) | Implemented (`node scripts/development/dev-stack.mjs`) |
 | Docker Compose / Dockerfiles | **Built and run** (Docker Engine in WSL2); verified by 81 container checks (step 2 above) |
-| CI workflow | **Executed under `act`** (8/8 jobs; see step 7 above); not yet on GitHub-hosted runners |
+| CI workflow | **Green on GitHub Actions** (runs #1 and #2, all 9 jobs; see step 7 above) |
 
 ## Phase 2 - Multi-model: **in progress**
 
