@@ -68,6 +68,7 @@ No product code changed in this run. Every existing test and check is intact; no
 | Independent evaluation, all rows | 3.8 % / 0 % · 32.0 % / 0.2 % |
 | **Independent PII evaluation** (added 2026-09-28; ai4privacy validation splits, [10](10-pii-secrets-evaluation.md)) | email 99.3 % / 98.5 % · phone ≈63 % · SSN 30–36 % typed · names/addresses ≈0 % (no NER) · 47–68 % of PII-bearing records allowed |
 | **Independent secrets evaluation** (Samsung CredData, 67,564 lines) | **44.8 %** of real credentials detected · **14.2 %** false positives on hard negatives |
+| **PII improvement cycle** (2026-09-29, [11](11-pii-improvement-cycle.md); tuned on train, measured on the same held-out splits) | PII-bearing records allowed: **67.8 % → 47.2 %** / **47.1 % → 32.9 %** · names 0 % → 34–50 % · DOB → 42–65 % · SSN → 57–65 % · false card hits −80 % · cost **+10–36 ms per request, about −70 % throughput** on one engine process |
 | **Gateway latency overhead**, 1 in flight | chat: p50 **42.4 ms**, p95 **55.7 ms**, p99 **84.1 ms** · scan alone: p50 22.9 ms |
 | Throughput, one instance on one laptop | ≈ 44–68 chat req/s · ≈ 128 scan req/s |
 | Images | 0 fixable HIGH/CRITICAL CVEs in all 6 (Trivy) |
@@ -81,7 +82,7 @@ detection quality is the weakest part.**
 |---|---|---|
 | Security architecture (fail-closed, RLS, crypto, file defences, audit) | **Strong** | Designed defensively and now proven against real Postgres, Redis, ClamAV, Tesseract and Docker, including outages |
 | Engineering hygiene (tests, typing, CI, evidence) | **Strong** | 1,100+ tests, mypy strict, 8 CI jobs green under `act`, reproducible evidence |
-| **Detection quality (what it catches)** | **Weak** | Precise but low recall on third-party attacks (1.7 % / 39.6 %). Rules only, English-centric. The self-authored suite overstated it |
+| **Detection quality (what it catches)** | **Weak → improving** | Injection/jailbreak recall on third-party data is low (1.7 % / 39.6 %, rules only). PII improved with a spaCy NER layer (a third to a half of PII-bearing records still pass unchanged). The self-authored suite overstated coverage |
 | Provider coverage | **Partial** | Only Ollama is real; the Gemini/OpenAI/Anthropic adapters have never made a real call |
 | Operations / scale | **Early** | Single instance and one laptop; per-instance rate limiting; no soak, multi-node or managed-cloud run; ≈65 chat req/s |
 | Readiness for real users | **Not ready** | Needs better detection recall (ML classifier), real provider verification, a GitHub CI run, a shared rate limiter, and a load/soak test on real hardware |
@@ -91,6 +92,9 @@ evidence. Its strongest story is how security failures are prevented and proven.
 worth presenting honestly as "measured, and why an ML layer is next".
 
 ## 7. Open items not closed by this run
+
+* **NER throughput cost** (2026-09-29): about 70 % fewer requests per second on one engine process. Mitigations are listed in [11](11-pii-improvement-cycle.md#performance-cost-of-the-ner-layer), not yet implemented.
+* **Driver's-licence verification re-scan**: a pre-existing, now-halved cause of wrongly blocked requests (3 / 19 of 17k / 8k held-out records).
 
 * An intermittent failure of the JavaScript SDK suite on the Windows host (about 5 of 78 historical runs; never on Linux). It
   passed in this run's baseline; root cause not determined (see `docs/release/v1.0-release-report.md` §10).

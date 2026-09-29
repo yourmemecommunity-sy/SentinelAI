@@ -10,7 +10,7 @@ import type { SecurityScanner } from "../../src/security/securityClient.js";
 
 export const TEST_CONFIG: AppConfig = {
   nodeEnv: "test", port: 0, corsOrigins: ["https://dash.example.test"], apiKeyPepper: "p".repeat(40),
-  securityEngineUrl: "http://engine.test", securityEngineToken: undefined, securityTimeoutMs: 500,
+  securityEngineUrl: "http://engine.test", securityEngineToken: undefined, securityTimeoutMs: 500, securityTimeoutPerKcharMs: 60,
   databaseUrl: undefined, geminiApiKey: undefined, openaiApiKey: undefined, anthropicApiKey: undefined, ollama: undefined, maxInputChars: 5_000, documentScanner: undefined, maxFileBytes: 200_000, vault: undefined, stream: { holdBackChars: 256, minSegmentChars: 64, idleTimeoutMs: 30_000, maxDurationMs: 300_000, maxOutputChars: 200_000, maxConcurrent: 10 }, rateLimitPerMinute: 1000,
   jwtAccessSecret: "j".repeat(40), accessTtlSeconds: 900, refreshTtlSeconds: 86_400, signupEnabled: true, providerCredentialKeys: undefined,
 };

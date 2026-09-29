@@ -45,6 +45,12 @@ export interface HttpSecurityClientOptions {
   baseUrl: string;
   token?: string | undefined;
   timeoutMs: number;
+  /**
+   * Extra time per 1,000 characters of text. The engine's NER layer costs time in proportion to length, and the engine's
+   * own budget grows the same way (SECURITY_TIME_BUDGET_PER_KCHAR_MS); this allowance is larger so the engine gives up
+   * first and answers with a clear fail-closed reason instead of the gateway timing out. Default 60.
+   */
+  timeoutPerKcharMs?: number;
   fetch?: typeof fetch;
 }
 
@@ -60,7 +66,7 @@ export class HttpSecurityClient implements SecurityScanner {
         method: "POST",
         headers: { "content-type": "application/json", ...(this.o.token ? { "x-internal-token": this.o.token } : {}) },
         body: JSON.stringify(req),
-        signal: AbortSignal.timeout(this.o.timeoutMs),
+        signal: AbortSignal.timeout(this.o.timeoutMs + (this.o.timeoutPerKcharMs ?? 60) * Math.ceil(req.text.length / 1000)),
       });
     } catch (err) {
       const timeout = err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError");

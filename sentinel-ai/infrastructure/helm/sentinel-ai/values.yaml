@@ -56,7 +56,9 @@ securityEngine:
   replicas: 2
   port: 8001
   resources:
-    requests: { cpu: 200m, memory: 128Mi }
+    # The NER model (spaCy en_core_web_md) keeps the engine at ~340 MiB under load (measured 2026-09-29), so the request
+    # reflects real use for scheduling; the limit leaves ~170 MiB headroom.
+    requests: { cpu: 200m, memory: 384Mi }
     limits: { memory: 512Mi }
 
 tokenVault:

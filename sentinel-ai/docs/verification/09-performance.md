@@ -1,5 +1,9 @@
 # Task 9 — Performance: gateway overhead and throughput
 
+> **These numbers predate the NER layer.** Since 2026-09-29 the engine also runs a spaCy NER model: +10-36 ms per request and
+> about 70 % less throughput on one engine process, measured before/after on the same machine and day in
+> [11-pii-improvement-cycle.md](11-pii-improvement-cycle.md#performance-cost-of-the-ner-layer).
+
 Run: **2026-09-27**, `bash scripts/development/perf-bench.sh 30` (k6 `grafana/k6:0.54.0`) against the Docker stack in WSL2.
 **No suspend during the run** (wall time 497 s = VM uptime 497 s). **0 failed requests in all 12 measured runs**; every
 response was checked for the expected status, verdict and content.

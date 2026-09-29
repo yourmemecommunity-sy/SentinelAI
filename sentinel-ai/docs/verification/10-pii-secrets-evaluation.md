@@ -1,5 +1,9 @@
 # Independent evaluation — PII and secrets detectors (public labelled datasets)
 
+> **This is the "before" record.** The PII numbers below predate the 2026-09-29 improvement cycle (NER layer, card/IMEI fix,
+> SSN and date-of-birth context). For the current PII numbers, measured on these same held-out splits, see
+> [11-pii-improvement-cycle.md](11-pii-improvement-cycle.md). The secrets numbers are unchanged.
+
 Run: **2026-09-28**, security engine in-process (`default_pipeline()`, baseline policy), commit `2968fb0` + this change.
 **No rule was tuned on these datasets**: the engine is exactly the committed code, and these are its first runs on them.
 

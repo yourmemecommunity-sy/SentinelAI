@@ -71,7 +71,7 @@ async function main(): Promise<void> {
 
   const config: AppConfig = {
     nodeEnv: "development", port, corsOrigins: ["http://localhost:3000"], apiKeyPepper: "dev-only-pepper-".padEnd(40, "x"),
-    securityEngineUrl: engineUrl, securityEngineToken: process.env.SECURITY_ENGINE_TOKEN, securityTimeoutMs: 3000,
+    securityEngineUrl: engineUrl, securityEngineToken: process.env.SECURITY_ENGINE_TOKEN, securityTimeoutMs: 3000, securityTimeoutPerKcharMs: 60,
     databaseUrl: undefined, geminiApiKey: process.env.GEMINI_API_KEY, openaiApiKey: process.env.OPENAI_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     ollama: process.env.OLLAMA_MODEL ? { baseUrl: process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434", model: process.env.OLLAMA_MODEL } : undefined, maxInputChars: 200_000, maxFileBytes: 20 * 1024 * 1024,

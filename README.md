@@ -16,7 +16,7 @@ reaches a model. If any security component is unavailable, the request is refuse
 The project lives in [`sentinel-ai/`](sentinel-ai/); this page mirrors [`sentinel-ai/README.md`](sentinel-ai/README.md).
 
 **Tech stack:** TypeScript (Node.js 20, Fastify, Zod, jose, pg) · Next.js + React + Tailwind CSS · Python 3.12 (FastAPI,
-Pydantic, cryptography, redis-py, pypdf, defusedxml) · PostgreSQL 18 · Redis · ClamAV · Tesseract · Docker Compose · Helm ·
+Pydantic, spaCy NER, cryptography, redis-py, pypdf, defusedxml) · PostgreSQL 18 · Redis · ClamAV · Tesseract · Docker Compose · Helm ·
 Terraform · GitHub Actions · Vitest · pytest · mypy · Playwright · k6
 
 ## Architecture
@@ -77,20 +77,22 @@ as measured, even where they are poor.
 ### 1. Data leakage: PII and secrets
 
 **PII**: [ai4privacy](https://huggingface.co/ai4privacy) PII-masking datasets, English **validation** splits (17,046 + 7,946
-records). Detection rate means the right detector fired on the labelled span
-([details](sentinel-ai/docs/verification/10-pii-secrets-evaluation.md)).
+records), held out: one improvement cycle was tuned on the *train* splits only, then measured here once. Detection rate
+means the right detector fired on the labelled span ([before](sentinel-ai/docs/verification/10-pii-secrets-evaluation.md) ·
+[after the NER cycle](sentinel-ai/docs/verification/11-pii-improvement-cycle.md)).
 
-| PII type | Detection rate (400k / 300k) | False-positive rate of the detector (400k / 300k) |
+| PII type | Detection rate, 400k / 300k: before → **after** | False-positive rate of the detector (400k / 300k), after |
 |---|---|---|
-| Email | **99.3 % / 98.5 %** | 0.0 % / 3.1 % |
-| Phone number | 62.7 % / 63.0 % | 4.6 % / 2.9 % |
-| Social-security number | 35.5 % / 29.9 % (≈73 % / 64 % caught by some detector) | 0.2 % / 1.2 % |
-| Driver's licence | 31.3 % / 53.8 % | 1.2 % / 2.2 % |
-| Date of birth | 19.9 % / 24.8 % | 1.2 % / 1.4 % |
-| Bank account / credit card | 21.3 % / 11.6 % (400k only) | 24.8 % / **82.9 %** (IMEI numbers mistaken for cards) |
-| Password | 8.7 % / 39.5 % | 5.0 % / 2.4 % |
-| Passport / street address | — / 3.3 % · 0–10 % | low |
-| Names, usernames, cities, IP addresses | **0 % (no detector: no NER layer)** | — |
+| **Records containing PII that pass unchanged (ALLOW)** | 67.8 % / 47.1 % → **47.2 % / 32.9 %** | — |
+| Person names (NER) | 0 % → **48–50 % / 34–40 %** | 36 % / 17 % (upper bound: the data leaves many names unlabelled) |
+| Cities / countries (NER; reported, allowed by default) | 0 % → **46 % / 32–51 %** | 57 % / 21 % (upper bound) |
+| Email | 99.3 % / 98.5 % → **99.3 % / 99.0 %** | 0.0 % / 3.1 % |
+| Phone number | 62.7 % / 63.0 % → **62.7 % / 63.4 %** | 5.0 % / 3.5 % |
+| Social-security number | 35.5 % / 29.9 % → **57.4 % / 64.6 %** | 0.2 % / 0.7 % |
+| Date of birth | 19.9 % / 24.8 % → **41.7 % / 65.0 %** | 2.7 % / 1.8 % |
+| Credit card | 11.6 % → 9.9 % (400k; only 10 % of its "cards" are valid numbers) | **82.9 % → 58.3 %** (IMEI false hits −80 %) |
+| Driver's licence · password · passport | 31 % / 56 % · 9 % / 40 % · — / 3 % (unchanged) | ≤ 5 % |
+| Usernames, IP addresses, street numbers, postcodes | ≈ 0 % (no detector) | — |
 
 **Secrets**: [Samsung CredData](https://github.com/Samsung/CredData), human-labelled credential candidates from public
 repositories:
@@ -103,9 +105,11 @@ repositories:
 | Generic keys · tokens · passwords | 42 % · 46 % · 58 % | 6.0 % · 2.0 % · 27.8 % |
 | UUIDs used as secrets · generic secrets | 6 % · 26 % | 59 % · 8 % |
 
-Overall, well-formatted values (email, private keys, JWTs, auth headers, prefixed vendor keys) are caught; free-form PII
-(names, addresses) and secrets that look like ordinary values (UUIDs, salts, generic passwords) mostly are not. **47–68 % of records that contain PII pass through with decision ALLOW.** The Indian identifiers
-(Aadhaar, PAN, UPI) do not appear in these datasets, so they are covered only by the self-authored suite.
+Overall, well-formatted values (email, private keys, JWTs, auth headers, prefixed vendor keys) are caught. The NER layer now
+finds about half of all person names. Addresses, usernames and secrets that look like ordinary values (UUIDs, salts,
+generic passwords) mostly are not caught. **33–47 % of records that contain PII still pass through with decision ALLOW**
+(down from 47–68 %). The Indian identifiers (Aadhaar, PAN, UPI) do not appear in these datasets, so they are covered only by
+the self-authored suite.
 
 ### 2. Prompt injection and jailbreak
 
@@ -117,21 +121,24 @@ Held-out test splits ([details](sentinel-ai/docs/verification/08-independent-eva
 | jackhhao/jailbreak-classification | **39.6 %** | 0.0 % |
 
 The filter is precise but has low recall against attacks written by other people. The self-authored suite (524 records,
-100 % of critical cases) overstates real-world coverage. An ML classifier and NER are the next milestone.
+100 % of critical cases) overstates real-world coverage. An ML injection classifier is the next milestone.
 
 ### 3. Performance
 
 Measured with k6 against the Docker stack and an instant mock model, so only gateway + security engine + audit cost is
-counted ([details](sentinel-ai/docs/verification/09-performance.md)):
+counted. Before and after the NER layer were measured on the same machine and day
+([details](sentinel-ai/docs/verification/11-pii-improvement-cycle.md#performance-cost-of-the-ner-layer)):
 
-| Measure (one laptop: i5-13420H, 12 vCPU WSL2 VM; load generator on the same machine) | Result |
-|---|---|
-| Latency added to a chat request, 1 in flight (input scan + policy + output scan + audit) | **p50 42 ms · p95 56 ms · p99 84 ms** |
-| Standalone scan, 1 in flight | p50 23 ms · p95 32 ms · p99 53 ms |
-| Throughput at saturation, single instance | ≈ 44–68 chat req/s · ≈ 128 scan req/s |
+| Measure (one laptop: i5-13420H, 12 vCPU WSL2 VM; load generator on the same machine) | Before NER | **With NER (current)** |
+|---|---|---|
+| Latency added to a chat request, 1 in flight (p50 · p95 · p99) | 45 · 56 · 74 ms | **55 · 69 · 87 ms** |
+| Same, chat containing PII (masking path) | 41 · 57 · 68 ms | **62 · 75 · 104 ms** |
+| Standalone scan, 1 in flight (p50 · p95 · p99) | 21 · 28 · 37 ms | **29 · 36 · 50 ms** |
+| Throughput at saturation, single engine process | ≈ 66–78 chat · ≈ 141–150 scan req/s | **≈ 16–23 chat · ≈ 43–44 scan req/s** |
 
-These are single-instance numbers with 0 failed requests. Past ~8 concurrent requests extra load only adds queueing, and
-run-to-run variance on a shared laptop is tens of percent.
+Per request, NER costs 10–36 ms. **Under load, throughput falls by about 70 %**, because NER is CPU-bound and the engine runs
+as a single process. This is not yet mitigated (more engine workers or replicas would help). All numbers are single-instance,
+with 0 failed requests; run-to-run variance on a shared laptop is tens of percent.
 
 ## Quick start
 
@@ -156,16 +163,17 @@ To check the whole stack (from `sentinel-ai/`): `bash scripts/development/docker
 
 ## Known limitations (stated plainly)
 
-* **Detection recall is low outside well-formatted identifiers** (see the numbers above). The detectors are rules, not ML:
-  names and addresses are not detected at all, 47–68 % of PII-bearing records in the public PII sets pass unchanged, most
-  third-party prompt injections are missed, and the card detector confuses IMEI numbers with card numbers.
+* **Detection recall is still limited** (see the numbers above). The NER layer finds about half of all names. Addresses,
+  usernames and IDs are mostly missed, and 33–47 % of PII-bearing records in the public PII sets still pass unchanged. Most
+  third-party prompt injections are missed (rules only, no ML classifier).
+* **NER costs throughput**: about 70 % fewer requests per second on one engine process (see Performance).
 * **Gemini, OpenAI and Anthropic have never been called for real**: no API keys were available. Those adapters are tested
   against stand-in servers only. Ollama is verified for real.
 * **Rate limiting is per gateway instance.** With N replicas a client gets N× the limit; the shared Redis limiter is designed
   but not built ([why](sentinel-ai/docs/LEARNING.md#7-rate-limiting-per-instance-today-and-the-fix)).
 * Runs on one machine only: no managed-cloud deployment, no multi-node Kubernetes (Helm verified on a single-node `kind`
   cluster), and no soak test. Benchmarks share one laptop CPU with the load generator.
-* No SSO/MFA, and no ML/NER detection layer (roadmap phases 3–4).
+* No SSO/MFA, and no ML prompt-injection classifier (roadmap phases 3–4).
 
 Full status: [sentinel-ai/docs/architecture/roadmap.md](sentinel-ai/docs/architecture/roadmap.md) · design decisions explained:
 [sentinel-ai/docs/LEARNING.md](sentinel-ai/docs/LEARNING.md) · decisions taken during verification: [sentinel-ai/docs/decisions-log.md](sentinel-ai/docs/decisions-log.md).

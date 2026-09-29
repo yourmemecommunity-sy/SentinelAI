@@ -8,15 +8,36 @@ from app.models.types import EntityType, Severity
 from app.utils.checksums import iban_valid, luhn_valid
 
 _CTX = re.IGNORECASE
-# Major networks + Maestro/UnionPay/etc: first digit 3-6, or Mastercard 2-series. Luhn does the heavy lifting.
-_CARD_PREFIX = re.compile(r"^(?:2[2-7]|[3-6])")
+
+# Card networks by issuer prefix AND the lengths that network actually issues. Luhn alone is not enough: other
+# identifiers use the same checksum - notably IMEI device numbers (15 digits, Luhn check digit), which a prefix-only rule
+# reported as cards. A 15-digit number is now only a card if it is Amex (34/37) or in a Maestro range.
+_CARD_NETWORKS: tuple[tuple[re.Pattern[str], frozenset[int]], ...] = (
+    (re.compile(r"^4"), frozenset({13, 16, 19})),                                                      # Visa
+    (re.compile(r"^(?:5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d\d|27[01]\d|2720)"), frozenset({16})),       # Mastercard
+    (re.compile(r"^3[47]"), frozenset({15})),                                                          # American Express
+    (re.compile(r"^(?:30[0-5]|3095|36|3[89])"), frozenset({14, 16, 17, 18, 19})),                     # Diners Club
+    (re.compile(r"^35(?:2[89]|[3-8]\d)"), frozenset({16, 17, 18, 19})),                               # JCB
+    (re.compile(r"^(?:6011|64[4-9]|65)"), frozenset({16, 17, 18, 19})),                               # Discover
+    (re.compile(r"^62"), frozenset({16, 17, 18, 19})),                                                 # UnionPay
+    (re.compile(r"^(?:5[06-9]|6\d)"), frozenset(range(13, 20))),                                      # Maestro
+    (re.compile(r"^(?:60|65|81|82|508|353|356)"), frozenset({16})),                                   # RuPay
+)
+# Text right before the number that says it is a device identifier, not a card.
+_DEVICE_ID_CONTEXT = re.compile(r"\bimei\b|\bimeisv\b|\bmeid\b|device\s+(?:id|identifier|serial)|serial\s+(?:no|number)", _CTX)
 
 
-def _card_check(value: str, _ctx: str) -> float | None:
+def _card_network_ok(digits: str) -> bool:
+    return any(prefix.match(digits) and len(digits) in lengths for prefix, lengths in _CARD_NETWORKS)
+
+
+def _card_check(value: str, ctx: str) -> float | None:
     digits = re.sub(r"\D", "", value)
-    if not luhn_valid(digits) or not _CARD_PREFIX.match(digits):
+    if not luhn_valid(digits) or not _card_network_ok(digits):
         return None
     if len(set(digits)) == 1:  # 0000..., 1111... are not real PANs
+        return None
+    if _DEVICE_ID_CONTEXT.search(ctx[-40:]):  # "IMEI: 35..." - a Luhn-valid device number, not a payment card
         return None
     return 0.97
 

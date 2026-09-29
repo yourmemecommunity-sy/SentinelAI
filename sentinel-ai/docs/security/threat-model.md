@@ -49,7 +49,7 @@ compromised provider; curious/compromised tenant admin; insider with DB/log acce
 
 ## Known gaps
 
-- **No NER**: person names/addresses are only heuristic (addresses) or absent (names).
+- **Partial NER**: a local spaCy model finds person names and places (about half of all names on public held-out data), but addresses remain heuristic, and usernames and IDs are mostly missed. Its CPU cost cuts engine throughput by about 70 % (docs/verification/11-pii-improvement-cycle.md).
 - **No ML classifier**: paraphrased/semantic injections and jailbreaks can evade rules.
 - **Business-data classifiers absent**: proprietary source code, architecture, contracts, pricing.
 - **Obfuscated PII/secrets** (e.g. spaced-out emails or keys) are not normalized like injections are.

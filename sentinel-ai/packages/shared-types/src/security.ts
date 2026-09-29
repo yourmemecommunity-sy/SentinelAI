@@ -6,6 +6,7 @@ export const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 export const ACTIONS = ["ALLOW", "HASH", "MASK", "TOKENIZE", "REDACT", "QUARANTINE", "BLOCK"] as const;
 export const DIRECTIONS = ["INPUT", "OUTPUT"] as const;
 export const ENTITY_TYPES = [
+  "NAME", "LOCATION", // NER layer (person names; cities, regions, countries)
   "EMAIL", "PHONE", "ADDRESS", "DATE_OF_BIRTH", "PAN", "AADHAAR", "PASSPORT", "SSN", "DRIVER_LICENSE",
   "CREDIT_CARD", "BANK_ACCOUNT", "UPI", "IFSC",
   "API_KEY", "AWS_CREDENTIAL", "GOOGLE_CREDENTIAL", "GITHUB_TOKEN", "JWT", "OAUTH_TOKEN",

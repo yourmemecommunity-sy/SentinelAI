@@ -3,7 +3,12 @@ name = "sentinel-security-engine"
 version = "0.1.0"
 description = "SentinelAI security engine: detectors, sanitization, policy evaluation, risk scoring"
 requires-python = ">=3.11"
-dependencies = ["fastapi>=0.110", "uvicorn>=0.29", "pydantic>=2.6"]
+dependencies = [
+    "fastapi>=0.110", "uvicorn>=0.29", "pydantic>=2.6",
+    # NER layer: spaCy + a pinned English model, run locally (app/detectors/ner)
+    "spacy>=3.8,<3.9",
+    "en_core_web_md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.5", "mypy>=1.13,<2"]

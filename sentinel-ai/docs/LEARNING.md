@@ -289,3 +289,70 @@ host. A macro document is passed along to a model or user as "clean". A secret i
 3. *Why a separate process for extraction?* — Parsers for PDF and Office formats are complex native code paths. A crafted
    file that crashes or hangs one must take down only a disposable child, never the service, and the pipeline treats a crash
    as a block.
+
+---
+
+## 9. The NER layer, and the precision/recall trade-off
+
+**What it is.** A statistical named-entity recogniser (spaCy `en_core_web_md`, running inside the security engine, with no
+external API) that finds what rules cannot: person names (`NAME`) and places (`LOCATION`). It is one more detector in the
+registry, so its detections flow through exactly the same policy, sanitization, verification and audit as every rule-based
+detector. Names are MEDIUM severity and masked by default. Places are LOW severity: detected and audited, but allowed unless
+an organisation's policy says otherwise.
+
+**Why.** The independent evaluation showed that the rule engine was blind to the most common personal data of all: 0 % of
+names and places were found, and 68 % / 47 % of records containing PII passed through unchanged. Names have no fixed format,
+so they need a model. After this cycle, on the same held-out data, 47 % / 33 % pass unchanged, and about half the names are
+found.
+
+**Design decisions inside it.**
+* **Model chosen by measurement on the training split only**: `md` was nearly as accurate as `lg` at the same latency, with
+  half the memory and an 8× smaller download. Presidio (a wrapper around the same spaCy models) added 50–60 % latency for
+  identical accuracy.
+* **Fail-closed like everything else**: if the model cannot be loaded, the engine reports not-ready and refuses every scan.
+  Production refuses to start with NER switched off. A readiness canary checks that the model actually finds a synthetic name,
+  so a model that loads but does not work is also caught.
+* **Whole input, no truncation**: long texts are processed in overlapping windows, and time budgets grow with input length
+  (NER costs ≈18 ms per 1,000 characters). The alternative, "only scan the first N characters", was rejected because it
+  creates a silent coverage gap.
+* **Verification adapted to a contextual model**: after masking, the engine re-scans its own output. For rules, any leftover
+  detection means a bug. A model may tag a *different* word once the text has changed, so for NER types the check is "did a
+  value we masked survive?".
+
+### The precision/recall trade-off, concretely
+
+* **Recall** = of all the real names, how many did we find? **Precision** = of everything we flagged as a name, how much
+  really was one? Pushing one up usually pushes the other down.
+* For a data-leakage gateway, **a miss (false negative) leaks personal data; a false alarm (false positive) only masks an
+  innocent word.** So this layer leans towards recall. Its precision is modest: on the held-out data, 17–36 % of NAME hits
+  land on text the dataset did not label. Part of that is label noise (real names the dataset did not tag), and part is
+  genuine model error.
+* **But false positives are not free.** Masking "France" in "What is the capital of France?" breaks an ordinary question.
+  That is why places default to *allow* (detected and audited, not masked), and why a few filters remove the model's
+  commonest mistakes (acronyms such as "CI", temperature units, compass words, anything containing digits or URL
+  characters). Every filter was checked on the training split, to confirm it removed noise without costing recall.
+* **The operating point is a policy decision, not a constant.** A hospital may want places masked too (one policy rule), and a
+  coding assistant may accept more false positives. The engine exposes the knobs (severity, per-entity action) and the
+  evaluation measures both sides, so the choice is visible.
+
+**What breaks without it.** Names, the most common personal data in real prompts, reach the model untouched, and a
+"PII gateway" misses the thing most people mean by PII.
+
+**Read:** `services/security-engine/app/detectors/ner/detector.py` → `app/detectors/registry.py` →
+`app/pipelines/scan_pipeline.py` (`is_ready`, `self_test`, `_verify_clean`, `_budget_ms`) →
+`tests/detectors/test_ner_detector.py` → `docs/verification/11-pii-improvement-cycle.md`.
+
+**Interview questions**
+1. *Why not just add more regexes for names?* — Names have no structure a regex can rely on. A capitalised-word rule flags
+   every sentence start and every product name, and a dictionary misses most real names and every new one. A statistical
+   model uses context ("send it to ___", "Mr ___"), which is the only signal names reliably have. The honest cost is that
+   it is probabilistic: it misses some names and invents a few, and the evaluation reports both.
+2. *How did you avoid fooling yourself about the improvement?* — Everything was tuned on the training split with a fixed
+   seeded sample. The held-out validation split was read once, at the end, and both files are pinned by revision and
+   SHA-256. The before and after numbers come from the same script on the same data, and the regressions are reported too:
+   card detection rate −1.7 points, more date-of-birth false positives, and a false positive in our own benign suite
+   ("Dan" is masked).
+3. *What happens if the model file is missing in production?* — The detector reports itself unhealthy, `/ready` returns
+   503 so the orchestrator and the gateway stop routing traffic, and any scan that still arrives is refused with
+   `detector_unavailable:ner`. The engine never silently runs "rules only", because that would quietly turn name detection
+   off, which is exactly the fail-open behaviour the whole design avoids.

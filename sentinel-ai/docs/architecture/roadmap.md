@@ -21,6 +21,7 @@ they say "never built / never run", this table is the current truth.
 | 10. README for recruiters | **Done** — problem statement, Mermaid architecture, verified-for-real table, evaluation + benchmark numbers, one-command quick start, limitations | [README.md](../../README.md) |
 | 11. Learning guide | **Done** — 8 design decisions (what / why / rejected alternative / what breaks / files / 3 interview Q&A each); states plainly that the multi-replica rate-limit fix is designed, not built | [LEARNING.md](../LEARNING.md) |
 | 12. Independent PII + secrets evaluation (public labelled data, no tuning) | **Done** — ai4privacy PII validation splits (25k records): email 98–99 %, phone 63 %, SSN 30–36 %, names/addresses ≈0 % (no NER); 47–68 % of PII-bearing records pass as ALLOW; card detector confuses IMEIs with cards. Samsung CredData (67.6k lines): **44.8 %** of real credentials detected, **14.2 %** FP on hard negatives. Aadhaar/PAN/UPI not in these datasets | [10-pii-secrets-evaluation.md](../verification/10-pii-secrets-evaluation.md) |
+| 13. PII improvement cycle (tuned on train splits only, measured once on the held-out splits) | **Done** — spaCy NER layer (`en_core_web_md`) for names and places, card/IMEI fix, SSN-vs-phone and date-of-birth context rules. PII-bearing records allowed unchanged: **67.8 % → 47.2 %** (400k) and **47.1 % → 32.9 %** (300k); names 0 % → 34–50 %; DOB → 42–65 %; SSN → 57–65 %; false card hits −80 %. **Cost: +10–36 ms per request and about −70 % throughput on one engine process** (not yet mitigated). Fail-closed if the model is unavailable | [11-pii-improvement-cycle.md](../verification/11-pii-improvement-cycle.md) |
 
 ## Phase 0 - Architecture: **done**
 Repo structure, structure validator (+ tests), architecture docs, Mermaid diagrams, ERD, OpenAPI, threat model, security model,
@@ -71,7 +72,7 @@ env template, Docker Compose foundation, test foundation.
 - The dashboard was exercised through its HTTP surface and unit/component tests, **not in a real browser**: layout, accessibility with assistive tech and client-side navigation are unverified.
 - The dashboard has no user/team management, so extra users can only be created directly in the database (tests do this).
 
-See [threat model](../security/threat-model.md#known-gaps). Highlights: no NER or ML layer; evaluation set is self-authored;
+See [threat model](../security/threat-model.md#known-gaps). Highlights: a spaCy NER layer finds about half of all person names (step 13), but there is no ML injection classifier; the evaluation set is self-authored;
 the independent evaluation (step 8) shows low recall on third-party injection/jailbreak prompts; tokenized values are reversible only within a vault session (see streaming-and-tokenization.md); multi-message chats are scanned per message plus joined, so a secret
 split mid-token across messages is only caught if the joined text still matches; rate limiting is per-instance; policy
 writes and their audit-log entry are separate transactions.

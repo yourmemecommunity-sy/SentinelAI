@@ -1,10 +1,12 @@
 """Detector registry. Custom detectors are added with `register`; the default bundle covers all built-ins."""
 from __future__ import annotations
 
+from app.config.settings import Settings
 from app.detectors.base import Detector
 from app.detectors.confidential_data import build_confidential_detector
 from app.detectors.credentials import build_credential_detector
 from app.detectors.financial import build_financial_detector
+from app.detectors.ner import NerDetector
 from app.detectors.pii import build_pii_detector
 from app.detectors.prompt_injection import PromptInjectionDetector
 from app.detectors.secrets import build_secret_detectors
@@ -27,9 +29,12 @@ class DetectorRegistry:
         return len(self._detectors)
 
 
-def default_registry() -> DetectorRegistry:
+def default_registry(settings: Settings | None = None) -> DetectorRegistry:
+    s = settings or Settings()
     reg = DetectorRegistry()
     for det in (build_pii_detector(), build_financial_detector(), *build_secret_detectors(),
                 build_credential_detector(), PromptInjectionDetector(), build_confidential_detector()):
         reg.register(det)
+    if s.ner_enabled:
+        reg.register(NerDetector(s.ner_model))
     return reg

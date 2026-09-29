@@ -17,6 +17,9 @@ from app.utils.hashing import value_digest
 # check(value, preceding_context) -> confidence to use, or None to reject the candidate.
 CheckFn = Callable[[str, str], "float | None"]
 
+# Replacement strings produced by app.sanitization (mask, redact, token, hash). Linear-time pattern.
+_PLACEHOLDER = re.compile(r"\[[A-Z_]{2,40}_(?:MASKED|REDACTED)\]|\[TOK_[A-Z_]{1,40}_\d{1,6}\]|<[A-Z_]{2,40}_HASH:[0-9a-f]{8}>")
+
 
 class Detector(ABC):
     """Extension point: implement and register via `DetectorRegistry` to add custom detectors."""
@@ -27,6 +30,10 @@ class Detector(ABC):
     @abstractmethod
     def detect(self, text: str) -> list[Detection]:
         ...
+
+    def healthy(self) -> bool:
+        """False when the detector cannot work (e.g. a model failed to load): the engine then reports not-ready."""
+        return True
 
 
 def make_detection(entity: EntityType, value: str, start: int, end: int, confidence: float,
@@ -64,7 +71,10 @@ class PatternDetector(Detector):
                 if not value:
                     continue
                 start, end = m.span(spec.group)
-                before = text[max(0, start - spec.context_window):start]
+                # The engine's own placeholders ("[DATE_OF_BIRTH_MASKED]", "[TOK_SSN_1]"...) contain the very words some
+                # context rules look for; they must not count as context, or the post-sanitization re-scan finds a
+                # "new" date of birth next to the placeholder and fails the whole request closed.
+                before = _PLACEHOLDER.sub(" ", text[max(0, start - spec.context_window):start])
                 if spec.context is not None and not spec.context.search(before):
                     continue
                 confidence = spec.confidence

@@ -2,7 +2,7 @@ import type { EntityType } from "@sentinelai/shared-types";
 import type { SecurityEvent, UsageRow } from "@/types/api";
 
 export const PII_ENTITIES: ReadonlySet<EntityType> = new Set<EntityType>([
-  "EMAIL", "PHONE", "ADDRESS", "DATE_OF_BIRTH", "PAN", "AADHAAR", "PASSPORT", "SSN", "DRIVER_LICENSE",
+  "NAME", "LOCATION", "EMAIL", "PHONE", "ADDRESS", "DATE_OF_BIRTH", "PAN", "AADHAAR", "PASSPORT", "SSN", "DRIVER_LICENSE",
   "CREDIT_CARD", "BANK_ACCOUNT", "UPI", "IFSC",
 ]);
 export const SECRET_ENTITIES: ReadonlySet<EntityType> = new Set<EntityType>([

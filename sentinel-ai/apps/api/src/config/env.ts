@@ -11,6 +11,8 @@ const Schema = z.object({
   SECURITY_ENGINE_URL: z.string().url().default("http://localhost:8001"),
   SECURITY_ENGINE_TOKEN: z.string().optional(),
   SECURITY_TIMEOUT_MS: z.coerce.number().int().min(50).max(30_000).default(2000),
+  // Added per 1,000 characters scanned (the engine's NER cost grows with length). Must exceed the engine's own allowance.
+  SECURITY_TIMEOUT_PER_KCHAR_MS: z.coerce.number().int().min(0).max(1000).default(60),
   DATABASE_URL: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
@@ -47,6 +49,7 @@ export interface AppConfig {
   securityEngineUrl: string;
   securityEngineToken: string | undefined;
   securityTimeoutMs: number;
+  securityTimeoutPerKcharMs: number;
   databaseUrl: string | undefined;
   geminiApiKey: string | undefined;
   openaiApiKey: string | undefined;
@@ -99,6 +102,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     securityEngineUrl: e.SECURITY_ENGINE_URL.replace(/\/+$/, ""),
     securityEngineToken: e.SECURITY_ENGINE_TOKEN,
     securityTimeoutMs: e.SECURITY_TIMEOUT_MS,
+    securityTimeoutPerKcharMs: e.SECURITY_TIMEOUT_PER_KCHAR_MS,
     databaseUrl: e.DATABASE_URL,
     geminiApiKey: e.GEMINI_API_KEY || undefined,
     openaiApiKey: e.OPENAI_API_KEY || undefined,

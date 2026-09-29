@@ -36,7 +36,8 @@ async function main(): Promise<void> {
     if (config.nodeEnv === "production") throw new Error(msg);
     console.warn(`WARNING: ${msg}`);
   }
-  const scanner = new HttpSecurityClient({ baseUrl: config.securityEngineUrl, token: config.securityEngineToken, timeoutMs: config.securityTimeoutMs });
+  const scanner = new HttpSecurityClient({ baseUrl: config.securityEngineUrl, token: config.securityEngineToken,
+    timeoutMs: config.securityTimeoutMs, timeoutPerKcharMs: config.securityTimeoutPerKcharMs });
   const router = new AiRouter();
   registerConfiguredProviders(router, config);
   if (router.ids().length === 0) console.warn("no AI providers configured: all /v1/ai/* requests will be blocked as unknown_provider");

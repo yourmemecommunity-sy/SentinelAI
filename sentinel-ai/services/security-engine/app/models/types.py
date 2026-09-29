@@ -64,7 +64,9 @@ class RiskLevel(str, Enum):
 
 
 class EntityType(str, Enum):
-    # PII
+    # PII. NAME (person names) and LOCATION (cities, regions, countries) come from the NER layer.
+    NAME = "NAME"
+    LOCATION = "LOCATION"
     EMAIL = "EMAIL"
     PHONE = "PHONE"
     ADDRESS = "ADDRESS"
@@ -100,6 +102,10 @@ class EntityType(str, Enum):
     JAILBREAK = "JAILBREAK"
     DATA_EXFILTRATION = "DATA_EXFILTRATION"
 
+
+# Found by a statistical model whose output depends on the surrounding words (the NER layer): re-scanning altered text can
+# tag different words, so sanitization is verified on the VALUES that were sanitized rather than on the type.
+CONTEXTUAL_ENTITIES = frozenset({EntityType.NAME, EntityType.LOCATION})
 
 THREAT_ENTITIES = frozenset({
     EntityType.PROMPT_INJECTION, EntityType.SYSTEM_PROMPT_EXTRACTION,

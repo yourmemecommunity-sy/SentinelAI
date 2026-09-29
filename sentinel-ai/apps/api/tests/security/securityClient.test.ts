@@ -35,6 +35,20 @@ describe("HttpSecurityClient fails closed", () => {
     expectFailClosed(await client(hang, 30).scan(REQ), "engine_timeout");
   });
 
+  it("the timeout grows with text length (NER cost is proportional to length), and still fails closed when exceeded", async () => {
+    // an engine that answers after 200 ms, and a 10,000-character text
+    const slow = ((_u: string, init: RequestInit) => new Promise((resolve, rej) => {
+      const t = setTimeout(() => resolve(json(makeScan("ALLOW", { sanitized_text: "x" }))), 200);
+      init.signal!.addEventListener("abort", () => { clearTimeout(t); rej(new DOMException("t", "TimeoutError")); });
+    })) as unknown as typeof fetch;
+    const long = { ...REQ, text: "x".repeat(10_000) };
+    const noAllowance = new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs: 50, timeoutPerKcharMs: 0, fetch: slow });
+    expectFailClosed(await noAllowance.scan(long), "engine_timeout");
+    const withAllowance = new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs: 50, timeoutPerKcharMs: 60, fetch: slow });
+    expect((await withAllowance.scan(long)).decision).toBe("ALLOW");            // 50 + 60 x 10 = 650 ms > 200 ms
+    expectFailClosed(await withAllowance.scan({ ...REQ, text: "short" }), "engine_timeout"); // 50 + 60 x 1 = 110 ms < 200 ms
+  });
+
   it.each([401, 422, 500, 503])("HTTP %i -> engine_http_%i", async (status) => {
     expectFailClosed(await client((async () => json({ detail: "x" }, status)) as unknown as typeof fetch).scan(REQ), `engine_http_${status}`);
   });
