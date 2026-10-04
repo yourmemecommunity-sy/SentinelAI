@@ -152,7 +152,7 @@ services:
       ANTHROPIC_USAGE_LEDGER: /tmp/anthropic-usage.json
       HTTPS_PROXY: http://egress-proxy:8899
       NO_PROXY: token-vault,localhost,127.0.0.1
-      SECURITY_ENGINE_WORKERS: ${SECURITY_ENGINE_WORKERS:-2}
+      SECURITY_ENGINE_WORKERS: ${SECURITY_ENGINE_WORKERS:-1}   # each worker needs ~1.2 GiB: raise SECURITY_ENGINE_MEM_LIMIT with it
     depends_on:
       token-vault: { condition: service_healthy }
       egress-proxy: { condition: service_healthy }

@@ -83,7 +83,7 @@ docker run --rm --network sentinel-ai_backend redis:7-alpine redis-cli -h redis 
 
 echo "===== 4. migrations and the restricted database role"
 n=$(psql "SELECT count(*) FROM schema_migrations")
-[ "$n" = 8 ] && pass "8 migrations recorded in schema_migrations" || fail "schema_migrations count=$n"
+[ "$n" = 9 ] && pass "9 migrations recorded in schema_migrations" || fail "schema_migrations count=$n"
 r=$(psql "SELECT rolsuper::text||','||rolbypassrls::text||','||pg_has_role('sentinel_api','sentinel_app','MEMBER')::text FROM pg_roles WHERE rolname='sentinel_api'")
 [ "$r" = "false,false,true" ] && pass "gateway login sentinel_api: NOSUPERUSER, NOBYPASSRLS, member of sentinel_app" || fail "sentinel_api attrs=$r"
 # The gateway's pool only holds connections while it is using them, so an idle gateway can show no session at all.

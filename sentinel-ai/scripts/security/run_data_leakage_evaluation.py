@@ -140,6 +140,8 @@ def eval_pii(pipeline: Any, limit: int | None, split: str = "validation", sample
         det_unlabelled: Counter[str] = Counter()
         records = decisions_protected = records_with_pii = 0
         failed_closed: Counter[str] = Counter()
+        decisions: Counter[str] = Counter()   # decision per record
+        decided_by: Counter[str] = Counter()  # which tier decided (explanation), so cascade-added blocks are visible
         started = time.perf_counter()
         with open(path, encoding="utf8") as f:
             for line_no, line in enumerate(f):
@@ -154,6 +156,9 @@ def eval_pii(pipeline: Any, limit: int | None, split: str = "validation", sample
                 res = pipeline.scan(ScanRequest(text=text, organization_id="independent-eval", direction=Direction.INPUT))
                 dets = [(d.entity.value, d.location.start, d.location.end) for d in res.detections]
                 records += 1
+                decisions[res.decision.value] += 1
+                if res.explanation is not None:
+                    decided_by[res.explanation.decided_by] += 1
                 if res.failed_closed:
                     failed_closed[str(res.fail_closed_reason)] += 1
                 if gold:
@@ -189,7 +194,7 @@ def eval_pii(pipeline: Any, limit: int | None, split: str = "validation", sample
                       for e in sorted(det_total, key=lambda k: -det_total[k])}
         out[name] = {"integrity": integrity, "records": records, "seconds": round(time.perf_counter() - started, 1),
                      "records_with_pii_not_allowed": rate(decisions_protected, records_with_pii),
-                     "failed_closed": dict(failed_closed),
+                     "failed_closed": dict(failed_closed), "decisions": dict(decisions), "decided_by": dict(decided_by),
                      "per_label": per_label, "per_engine_entity": per_entity}
     return out
 
@@ -258,6 +263,7 @@ def print_report(rep: dict[str, Any]) -> None:
         print(f"   records containing labelled PII whose decision was not ALLOW: {r['records_with_pii_not_allowed']:.1%}")
         print(f"   scans that failed closed (blocked with no detections, e.g. time budget): {sum(r['failed_closed'].values())} "
               f"{r['failed_closed'] or ''}")
+        print(f"   decisions: {r.get('decisions')}   decided by: {r.get('decided_by')}")
         print(f"   {'label':18} {'spans':>6}  {'engine type':15} {'detection':>9}  {'caught by any':>13}")
         for lab, m in r["per_label"].items():
             det = f"{m['detection_rate']:.1%}" if m["covered"] else "no detector"

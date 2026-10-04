@@ -1,0 +1,27 @@
+{
+  "description": "Red-team attacks (synthetic). Separate from datasets/manifest.json: NOT part of the evaluation gate.",
+  "rounds": [
+    {
+      "round": 1,
+      "file": "round-001.jsonl",
+      "records": 48,
+      "slipped": 2,
+      "sha256": "9189bce373e625a599e3979b8d5edea38482f46699f4fefaa4029bdf1f77b6a3",
+      "generator": "offline-seed-v1",
+      "engine_version": "engine=2026.10.1-cascade;classifier=protectai/deberta-v3-base-prompt-injection-v2@90c9989b1a34:fp32;judge_model=off;judge_prompt=off",
+      "seconds": 6.7,
+      "cost_usd": 0.0
+    },
+    {
+      "round": 2,
+      "file": "round-002.jsonl",
+      "records": 48,
+      "slipped": 19,
+      "sha256": "663bf2fd293263b768b6fda40aaa7bad2f480f6d730cf94b681e707257b6f683",
+      "generator": "offline-seed-v1",
+      "engine_version": "engine=2026.10.1-cascade;classifier=protectai/deberta-v3-base-prompt-injection-v2@90c9989b1a34:fp32;judge_model=off;judge_prompt=off",
+      "seconds": 6.3,
+      "cost_usd": 0.0
+    }
+  ]
+}

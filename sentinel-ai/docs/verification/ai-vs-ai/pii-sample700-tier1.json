@@ -1,0 +1,553 @@
+{
+  "generated_at": "2026-10-04T14:30:59Z",
+  "tuned_on_these_datasets": false,
+  "pii": {
+    "ai4privacy/pii-masking-400k": {
+      "integrity": {
+        "revision": "414d0a3b5798a152588a0828f1c08a5787de10f4",
+        "file": "data/validation/1en.jsonl",
+        "sha256": "e77bf977fd8a8b722ff859abd46bf7d20fb46b596cc139e55df32ebee88fcb39",
+        "pinned_sha256": "e77bf977fd8a8b722ff859abd46bf7d20fb46b596cc139e55df32ebee88fcb39",
+        "matches_pin": true,
+        "split": "validation"
+      },
+      "records": 700,
+      "seconds": 21.8,
+      "records_with_pii_not_allowed": 0.4969,
+      "failed_closed": {},
+      "decisions": {
+        "MASK": 200,
+        "REDACT": 43,
+        "ALLOW": 449,
+        "BLOCK": 8
+      },
+      "decided_by": {
+        "rules": 700
+      },
+      "per_label": {
+        "GIVENNAME": {
+          "spans": 108,
+          "engine_type": "NAME",
+          "covered": true,
+          "detection_rate": 0.5,
+          "caught_by_any_detector": 0.5
+        },
+        "SURNAME": {
+          "spans": 95,
+          "engine_type": "NAME",
+          "covered": true,
+          "detection_rate": 0.4105,
+          "caught_by_any_detector": 0.4316
+        },
+        "USERNAME": {
+          "spans": 93,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.0108
+        },
+        "CITY": {
+          "spans": 79,
+          "engine_type": "LOCATION",
+          "covered": true,
+          "detection_rate": 0.4177,
+          "caught_by_any_detector": 0.6076
+        },
+        "EMAIL": {
+          "spans": 66,
+          "engine_type": "EMAIL",
+          "covered": true,
+          "detection_rate": 1.0,
+          "caught_by_any_detector": 1.0
+        },
+        "BUILDINGNUM": {
+          "spans": 49,
+          "engine_type": "ADDRESS",
+          "covered": true,
+          "detection_rate": 0.102,
+          "caught_by_any_detector": 0.102
+        },
+        "TELEPHONENUM": {
+          "spans": 45,
+          "engine_type": "PHONE",
+          "covered": true,
+          "detection_rate": 0.7556,
+          "caught_by_any_detector": 0.7556
+        },
+        "ACCOUNTNUM": {
+          "spans": 41,
+          "engine_type": "BANK_ACCOUNT",
+          "covered": true,
+          "detection_rate": 0.2195,
+          "caught_by_any_detector": 0.2195
+        },
+        "IDCARDNUM": {
+          "spans": 36,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.1389
+        },
+        "STREET": {
+          "spans": 31,
+          "engine_type": "ADDRESS",
+          "covered": true,
+          "detection_rate": 0.1613,
+          "caught_by_any_detector": 0.4194
+        },
+        "ZIPCODE": {
+          "spans": 30,
+          "engine_type": "ADDRESS",
+          "covered": true,
+          "detection_rate": 0.0,
+          "caught_by_any_detector": 0.0
+        },
+        "DATEOFBIRTH": {
+          "spans": 29,
+          "engine_type": "DATE_OF_BIRTH",
+          "covered": true,
+          "detection_rate": 0.4483,
+          "caught_by_any_detector": 0.4483
+        },
+        "PASSWORD": {
+          "spans": 29,
+          "engine_type": "PASSWORD",
+          "covered": true,
+          "detection_rate": 0.1034,
+          "caught_by_any_detector": 0.1034
+        },
+        "SOCIALNUM": {
+          "spans": 26,
+          "engine_type": "SSN",
+          "covered": true,
+          "detection_rate": 0.7692,
+          "caught_by_any_detector": 0.8846
+        },
+        "TAXNUM": {
+          "spans": 25,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.24
+        },
+        "CREDITCARDNUMBER": {
+          "spans": 20,
+          "engine_type": "CREDIT_CARD",
+          "covered": true,
+          "detection_rate": 0.1,
+          "caught_by_any_detector": 0.1
+        },
+        "DRIVERLICENSENUM": {
+          "spans": 18,
+          "engine_type": "DRIVER_LICENSE",
+          "covered": true,
+          "detection_rate": 0.1111,
+          "caught_by_any_detector": 0.1111
+        }
+      },
+      "per_engine_entity": {
+        "NAME": {
+          "detections": 164,
+          "on_matching_label": 86,
+          "on_other_label": 23,
+          "on_unlabelled_text": 55,
+          "false_positive_rate": 0.3354
+        },
+        "LOCATION": {
+          "detections": 91,
+          "on_matching_label": 33,
+          "on_other_label": 4,
+          "on_unlabelled_text": 54,
+          "false_positive_rate": 0.5934
+        },
+        "EMAIL": {
+          "detections": 66,
+          "on_matching_label": 66,
+          "on_other_label": 0,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "PHONE": {
+          "detections": 54,
+          "on_matching_label": 46,
+          "on_other_label": 6,
+          "on_unlabelled_text": 2,
+          "false_positive_rate": 0.037
+        },
+        "SSN": {
+          "detections": 26,
+          "on_matching_label": 20,
+          "on_other_label": 6,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "BANK_ACCOUNT": {
+          "detections": 15,
+          "on_matching_label": 9,
+          "on_other_label": 2,
+          "on_unlabelled_text": 4,
+          "false_positive_rate": 0.2667
+        },
+        "DATE_OF_BIRTH": {
+          "detections": 14,
+          "on_matching_label": 13,
+          "on_other_label": 0,
+          "on_unlabelled_text": 1,
+          "false_positive_rate": 0.0714
+        },
+        "ADDRESS": {
+          "detections": 5,
+          "on_matching_label": 5,
+          "on_other_label": 0,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "CREDIT_CARD": {
+          "detections": 5,
+          "on_matching_label": 2,
+          "on_other_label": 0,
+          "on_unlabelled_text": 3,
+          "false_positive_rate": 0.6
+        },
+        "PASSWORD": {
+          "detections": 3,
+          "on_matching_label": 3,
+          "on_other_label": 0,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "DRIVER_LICENSE": {
+          "detections": 2,
+          "on_matching_label": 2,
+          "on_other_label": 0,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "AADHAAR": {
+          "detections": 1,
+          "on_matching_label": 0,
+          "on_other_label": 0,
+          "on_unlabelled_text": 1,
+          "false_positive_rate": 1.0
+        }
+      }
+    },
+    "ai4privacy/pii-masking-300k": {
+      "integrity": {
+        "revision": "c8c77895a005822682b66ab547fc0422579bc1d3",
+        "file": "data/validation/1english_openpii_8k.jsonl",
+        "sha256": "3112f54972d1a117936b75fa455e41872df36d4a8e7500ac9663e3ee671729e1",
+        "pinned_sha256": "3112f54972d1a117936b75fa455e41872df36d4a8e7500ac9663e3ee671729e1",
+        "matches_pin": true,
+        "split": "validation"
+      },
+      "records": 700,
+      "seconds": 20.9,
+      "records_with_pii_not_allowed": 0.6488,
+      "failed_closed": {
+        "sanitization_verification_failed": 4
+      },
+      "decisions": {
+        "MASK": 214,
+        "REDACT": 148,
+        "BLOCK": 41,
+        "ALLOW": 297
+      },
+      "decided_by": {
+        "rules": 696,
+        "fail_closed": 4
+      },
+      "per_label": {
+        "USERNAME": {
+          "spans": 317,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.0032
+        },
+        "TIME": {
+          "spans": 310,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.0
+        },
+        "PASSPORT": {
+          "spans": 267,
+          "engine_type": "PASSPORT",
+          "covered": true,
+          "detection_rate": 0.0262,
+          "caught_by_any_detector": 0.03
+        },
+        "DRIVERLICENSE": {
+          "spans": 243,
+          "engine_type": "DRIVER_LICENSE",
+          "covered": true,
+          "detection_rate": 0.5144,
+          "caught_by_any_detector": 0.5473
+        },
+        "IDCARD": {
+          "spans": 226,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.031
+        },
+        "LASTNAME1": {
+          "spans": 200,
+          "engine_type": "NAME",
+          "covered": true,
+          "detection_rate": 0.32,
+          "caught_by_any_detector": 0.335
+        },
+        "IP": {
+          "spans": 199,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.0
+        },
+        "TEL": {
+          "spans": 194,
+          "engine_type": "PHONE",
+          "covered": true,
+          "detection_rate": 0.6082,
+          "caught_by_any_detector": 0.6082
+        },
+        "SOCIALNUMBER": {
+          "spans": 190,
+          "engine_type": "SSN",
+          "covered": true,
+          "detection_rate": 0.6737,
+          "caught_by_any_detector": 0.8053
+        },
+        "EMAIL": {
+          "spans": 189,
+          "engine_type": "EMAIL",
+          "covered": true,
+          "detection_rate": 0.9418,
+          "caught_by_any_detector": 0.9418
+        },
+        "BOD": {
+          "spans": 186,
+          "engine_type": "DATE_OF_BIRTH",
+          "covered": true,
+          "detection_rate": 0.6398,
+          "caught_by_any_detector": 0.6398
+        },
+        "STATE": {
+          "spans": 176,
+          "engine_type": "LOCATION",
+          "covered": true,
+          "detection_rate": 0.1818,
+          "caught_by_any_detector": 0.1932
+        },
+        "GIVENNAME1": {
+          "spans": 175,
+          "engine_type": "NAME",
+          "covered": true,
+          "detection_rate": 0.3086,
+          "caught_by_any_detector": 0.3143
+        },
+        "STREET": {
+          "spans": 171,
+          "engine_type": "ADDRESS",
+          "covered": true,
+          "detection_rate": 0.0234,
+          "caught_by_any_detector": 0.2105
+        },
+        "CITY": {
+          "spans": 171,
+          "engine_type": "LOCATION",
+          "covered": true,
+          "detection_rate": 0.3567,
+          "caught_by_any_detector": 0.5497
+        },
+        "BUILDING": {
+          "spans": 170,
+          "engine_type": "ADDRESS",
+          "covered": true,
+          "detection_rate": 0.0235,
+          "caught_by_any_detector": 0.0235
+        },
+        "SEX": {
+          "spans": 168,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.0
+        },
+        "TITLE": {
+          "spans": 166,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.1145
+        },
+        "PASS": {
+          "spans": 154,
+          "engine_type": "PASSWORD",
+          "covered": true,
+          "detection_rate": 0.3182,
+          "caught_by_any_detector": 0.3182
+        },
+        "POSTCODE": {
+          "spans": 152,
+          "engine_type": "ADDRESS",
+          "covered": true,
+          "detection_rate": 0.0,
+          "caught_by_any_detector": 0.0
+        },
+        "DATE": {
+          "spans": 141,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.0142
+        },
+        "COUNTRY": {
+          "spans": 121,
+          "engine_type": "LOCATION",
+          "covered": true,
+          "detection_rate": 0.5537,
+          "caught_by_any_detector": 0.562
+        },
+        "SECADDRESS": {
+          "spans": 79,
+          "engine_type": "ADDRESS",
+          "covered": true,
+          "detection_rate": 0.0,
+          "caught_by_any_detector": 0.0
+        },
+        "GIVENNAME2": {
+          "spans": 57,
+          "engine_type": "NAME",
+          "covered": true,
+          "detection_rate": 0.3684,
+          "caught_by_any_detector": 0.4035
+        },
+        "LASTNAME2": {
+          "spans": 55,
+          "engine_type": "NAME",
+          "covered": true,
+          "detection_rate": 0.3818,
+          "caught_by_any_detector": 0.3818
+        },
+        "LASTNAME3": {
+          "spans": 17,
+          "engine_type": "NAME",
+          "covered": true,
+          "detection_rate": 0.2941,
+          "caught_by_any_detector": 0.2941
+        },
+        "GEOCOORD": {
+          "spans": 8,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 0.0
+        },
+        "CARDISSUER": {
+          "spans": 1,
+          "engine_type": null,
+          "covered": false,
+          "detection_rate": null,
+          "caught_by_any_detector": 1.0
+        }
+      },
+      "per_engine_entity": {
+        "NAME": {
+          "detections": 248,
+          "on_matching_label": 134,
+          "on_other_label": 72,
+          "on_unlabelled_text": 42,
+          "false_positive_rate": 0.1694
+        },
+        "LOCATION": {
+          "detections": 225,
+          "on_matching_label": 161,
+          "on_other_label": 22,
+          "on_unlabelled_text": 42,
+          "false_positive_rate": 0.1867
+        },
+        "PHONE": {
+          "detections": 201,
+          "on_matching_label": 146,
+          "on_other_label": 39,
+          "on_unlabelled_text": 16,
+          "false_positive_rate": 0.0796
+        },
+        "EMAIL": {
+          "detections": 187,
+          "on_matching_label": 178,
+          "on_other_label": 0,
+          "on_unlabelled_text": 9,
+          "false_positive_rate": 0.0481
+        },
+        "DRIVER_LICENSE": {
+          "detections": 130,
+          "on_matching_label": 126,
+          "on_other_label": 1,
+          "on_unlabelled_text": 3,
+          "false_positive_rate": 0.0231
+        },
+        "SSN": {
+          "detections": 128,
+          "on_matching_label": 128,
+          "on_other_label": 0,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "DATE_OF_BIRTH": {
+          "detections": 122,
+          "on_matching_label": 119,
+          "on_other_label": 2,
+          "on_unlabelled_text": 1,
+          "false_positive_rate": 0.0082
+        },
+        "PASSWORD": {
+          "detections": 49,
+          "on_matching_label": 49,
+          "on_other_label": 0,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "ADDRESS": {
+          "detections": 8,
+          "on_matching_label": 4,
+          "on_other_label": 0,
+          "on_unlabelled_text": 4,
+          "false_positive_rate": 0.5
+        },
+        "PASSPORT": {
+          "detections": 8,
+          "on_matching_label": 7,
+          "on_other_label": 1,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "AADHAAR": {
+          "detections": 5,
+          "on_matching_label": 0,
+          "on_other_label": 5,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        },
+        "BANK_ACCOUNT": {
+          "detections": 1,
+          "on_matching_label": 0,
+          "on_other_label": 0,
+          "on_unlabelled_text": 1,
+          "false_positive_rate": 1.0
+        },
+        "CREDIT_CARD": {
+          "detections": 1,
+          "on_matching_label": 0,
+          "on_other_label": 1,
+          "on_unlabelled_text": 0,
+          "false_positive_rate": 0.0
+        }
+      }
+    }
+  }
+}

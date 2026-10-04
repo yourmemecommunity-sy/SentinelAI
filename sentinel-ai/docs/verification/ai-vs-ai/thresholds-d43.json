@@ -1,0 +1,59 @@
+{
+  "model": "protectai/deberta-v3-base-prompt-injection-v2",
+  "variant": "fp32",
+  "revision": "see classifier.json / selection run",
+  "chosen_on": [
+    "deepset/prompt-injections"
+  ],
+  "rule": {
+    "max_fp": 0.02,
+    "max_fp_high": 0.005,
+    "max_judge_rate": 0.2
+  },
+  "threshold": 0.99999,
+  "band_low": 0.99008,
+  "band_high": 1.0,
+  "train_at_threshold": {
+    "detection_rate": 0.1921,
+    "false_positive_rate": 0.0
+  },
+  "train_attacks_in_band": 38,
+  "per_source": {
+    "labelled": {
+      "n": 546,
+      "fp_at_threshold": 0.0,
+      "judge_call_rate": 0.0714
+    },
+    "ai4privacy-400k-train": {
+      "n": 419,
+      "fp_at_threshold": 0.0263,
+      "judge_call_rate": 0.1408
+    },
+    "ai4privacy-300k-train": {
+      "n": 300,
+      "fp_at_threshold": 0.0033,
+      "judge_call_rate": 0.1967
+    }
+  },
+  "single_source_choice_was": {
+    "threshold": 0.0064,
+    "band_low": 1e-05,
+    "band_high": 0.97694
+  },
+  "per_dataset": {
+    "deepset/prompt-injections": {
+      "contaminated": false,
+      "at_chosen_threshold": {
+        "detection_rate": 0.1921,
+        "false_positive_rate": 0.0
+      }
+    },
+    "jackhhao/jailbreak-classification": {
+      "contaminated": true,
+      "at_chosen_threshold": {
+        "detection_rate": 0.4706,
+        "false_positive_rate": 0.0
+      }
+    }
+  }
+}

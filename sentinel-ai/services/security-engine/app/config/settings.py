@@ -27,11 +27,12 @@ class Settings:
     # see docs/verification/12-ai-vs-ai.md.
     cascade_enabled: bool = False
     classifier_dir: str = "/srv/models/injection-classifier"
-    # protectai/deberta-v3-base-prompt-injection-v2, chosen on TRAIN splits (scripts/security/choose_thresholds.py):
-    # threshold = train FP <= 2%; band = train FP <= 0.5% above it, <= 20% of train inputs inside it.
-    classifier_threshold: float = 0.0064
-    judge_band_low: float = 0.00001
-    judge_band_high: float = 0.97694
+    # protectai/deberta-v3-base-prompt-injection-v2; thresholds from TRAIN data only (scripts/security/choose_thresholds.py
+    # --benign-extra, D43): each limit holds on every benign train source (deepset prompts AND ai4privacy business text):
+    # threshold = FP <= 2%; band_high = FP <= 0.5% (here: never, below 1.0); band_low = judge call rate <= 20%.
+    classifier_threshold: float = 0.99999
+    judge_band_low: float = 0.99008
+    judge_band_high: float = 1.0
     # Classifier cost bound (measured on jackhhao TRAIN prompts, 2 threads: ~1.5 s per 512-token window at p95).
     classifier_threads: int = 2
     classifier_max_windows: int = 4

@@ -1,0 +1,32 @@
+{
+  "model": "claude-haiku-4-5",
+  "band": [
+    1e-05,
+    0.97694
+  ],
+  "chars_per_token": 3.0,
+  "splits": {
+    "deepset/prompt-injections": {
+      "requests": 116,
+      "judge_calls": 24,
+      "judge_call_rate": 0.2069,
+      "attacks_in_band": 23,
+      "benign_in_band": 1,
+      "mean_input_tokens_per_call": 584,
+      "usd_per_call_upper_bound": 0.001584,
+      "usd_per_1000_requests_judge_on": 0.3277,
+      "usd_per_1000_requests_judge_off": 0.0
+    },
+    "jackhhao/jailbreak-classification": {
+      "requests": 262,
+      "judge_calls": 47,
+      "judge_call_rate": 0.1794,
+      "attacks_in_band": 20,
+      "benign_in_band": 27,
+      "mean_input_tokens_per_call": 914,
+      "usd_per_call_upper_bound": 0.001914,
+      "usd_per_1000_requests_judge_on": 0.3434,
+      "usd_per_1000_requests_judge_off": 0.0
+    }
+  }
+}

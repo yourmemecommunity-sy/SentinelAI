@@ -3,6 +3,7 @@
 # security engine (+ audit writes) are measured. Run from the repository root inside WSL/Linux with the stack up:
 #
 #   bash scripts/development/perf-bench.sh [seconds per run, default 30]
+#   TARGETS="scan chat" VUS_LIST="1 8" bash scripts/development/perf-bench.sh 20     # a subset (default: all)
 #
 # What it changes, temporarily: the `api` container is recreated with OLLAMA_BASE_URL pointing at the mock and the
 # per-IP rate limit lifted (a load generator is one IP; the limiter would answer 429 and measure nothing). Both are
@@ -35,8 +36,8 @@ k6() {  # <name> <target> <vus> <duration>
 
 echo "## Warm-up (discarded)"; k6 warmup chat 4 10s
 echo "## Measured runs (${SECS}s each)"
-for vus in 1 8 32; do
-  for target in direct chat chat_pii scan; do k6 "${target}_vu${vus}" "$target" "$vus" "${SECS}s"; done
+for vus in ${VUS_LIST:-1 8 32}; do
+  for target in ${TARGETS:-direct chat chat_pii scan}; do k6 "${target}_vu${vus}" "$target" "$vus" "${SECS}s"; done
 done
 
 # restore the gateway exactly as configured in .env

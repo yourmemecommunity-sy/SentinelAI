@@ -100,7 +100,9 @@ class ScanPipeline:
             good = self.cascade.classifier.score("What is the capital of France?")
         except Exception:  # noqa: BLE001
             return False
-        return bad >= self.cascade.config.threshold > good
+        # Fixed sanity bounds, independent of the operating threshold (which may sit very close to 1.0, D43): the canary
+        # asks whether the model works, not where the organisation draws the line.
+        return bad > 0.9 and good < 0.1
 
     def scan(self, req: ScanRequest, vault: TokenVault | None = None, judge_override: Judge | None = None,
              force_no_judge: bool = False) -> ScanResult:
