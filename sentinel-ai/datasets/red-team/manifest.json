@@ -22,6 +22,17 @@
       "engine_version": "engine=2026.10.1-cascade;classifier=protectai/deberta-v3-base-prompt-injection-v2@90c9989b1a34:fp32;judge_model=off;judge_prompt=off",
       "seconds": 6.3,
       "cost_usd": 0.0
+    },
+    {
+      "round": 3,
+      "file": "round-003.jsonl",
+      "records": 24,
+      "slipped": 13,
+      "sha256": "69ffb8bab1ca24b85e32c78675b1abaf43cc5467a14d5878026e9a36be12f985",
+      "generator": "offline-seed-v1",
+      "engine_version": "engine=2026.10.1-cascade;classifier=protectai/deberta-v3-base-prompt-injection-v2@90c9989b1a34:fp32;judge_model=off;judge_prompt=off",
+      "seconds": 2.3,
+      "cost_usd": 0.0
     }
   ]
 }

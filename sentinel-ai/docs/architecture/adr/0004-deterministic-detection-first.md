@@ -1,6 +1,6 @@
 # ADR-0004: Deterministic detection first; ML/LLM only as an additional layer
 
-**Status:** accepted
+**Status:** accepted; amended by [ADR-0007](0007-additive-ml-and-llm-judge.md) (2026-10-03): a local classifier and an optional LLM judge now read attacker text, as additive tiers that can only block
 
 **Context.** A classifier that is itself an LLM can be prompt-injected by the content it inspects. The spec also requires
 the classifier be "hardened against prompt injection".

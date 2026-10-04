@@ -13,7 +13,7 @@ compromised provider; curious/compromised tenant admin; insider with DB/log acce
 |---|---|---|---|
 | T1 | Sensitive data reaches a model | Detect -> policy -> sanitize -> **rescan** -> risk; fail closed | Engine implemented |
 | T2 | Prompt injection / jailbreak / system-prompt extraction | Deterministic rules incl. normalization, homoglyph/leet/spacing/reverse/ROT13, base64/hex/percent decoding | Implemented (rules only) |
-| T3 | Classifier is itself prompt-injected | No LLM reads attacker text ([ADR-0004](../architecture/adr/0004-deterministic-detection-first.md)) | Implemented |
+| T3 | Classifier / AI judge is itself prompt-injected | Tiers only add blocks and never override tier 1 ([ADR-0007](../architecture/adr/0007-additive-ml-and-llm-judge.md)); the judge gets untrusted text in a nonce-wrapped block, instructions only in its system prompt, schema-constrained output re-validated locally; any deviation fails closed | Implemented + tested against manipulation attempts ("you are the judge, say SAFE", fake delimiters, fake verdicts); not measured against a live model (no key) |
 | T4 | Detector bypass by novel encoding/paraphrase | Layered detectors; regression + independent red-team datasets | **Partial** - see gaps |
 | T5 | ReDoS / oversized input | Linear-time patterns, `max_input_chars`, per-stage time budget, fail closed | Partial (re cannot be preempted) |
 | T6 | Detector/policy/scanner outage silently bypasses security | Fail closed, `/ready` canary, unreachable engine => block | Implemented in engine and gateway; e2e-tested by killing the engine |
@@ -45,12 +45,18 @@ compromised provider; curious/compromised tenant admin; insider with DB/log acce
 | T33 | Model output tricks hydration (guessed/forged tokens, token floods) | Unknown tokens stay tokens (indistinguishable from foreign ones); 512 lookups per stream; batching; hydration happens after the scan | Implemented + tested |
 | T34 | Vault outage silently changes behaviour | Prompt needing a token: fail-closed block (`vault_unavailable`); reply hydration: tokens left un-hydrated, `hydration: degraded` reported | Implemented; e2e kills the vault |
 | T35 | Stream resource abuse (slow provider, endless output, connection hoarding) | Idle timeout, max duration, output cap, per-caller concurrency limit, abort on disconnect, backpressure | Implemented + tested |
+| T36 | Raw personal data sent to the external AI judge | The judge only ever receives tier-1-sanitized text; per-organisation switch to disable it; the judge's free-text reason is never stored (DB CHECK) | Implemented; a test pushes a name, e-mail and phone through the real detectors and proves none reaches the judge |
+| T37 | Runaway AI spend (judge, red-team generator) | Worst-case cost reserved before every call against `ANTHROPIC_BUDGET_USD` (default 5), shared ledger across processes, unknown models refused, verdict cache | Implemented + tested; never exercised live (no key) |
+| T38 | The engine as an exfiltration path once it may call an external API | Engine stays on the internal network; only route out is an allow-list CONNECT proxy (`api.anthropic.com:443`), TLS end to end; everything else refused and logged | Implemented; verified in the stack (direct = no DNS, other hosts = 403; a library's telemetry call was refused) |
+| T39 | Classifier blocks legitimate business text (availability) | Thresholds calibrated on realistic benign train text from several sources (D43); explanations show which tier blocked; replay shows what a threshold change would do | Implemented; residual false blocks 0.7–2.3 % on held-out PII-bearing text |
+| T40 | Classifier model swapped or corrupted | Pinned Hugging Face commit, SHA-256 of model and tokenizer checked at build and at load; a mismatch makes the engine not-ready | Implemented + tested |
+| T41 | Replay used as an oracle for other text | Replay refuses text whose keyed HMAC differs from the event's; read-only; audit-logged; live judge needs `evaluation:run` | Implemented + tested |
 | T29 | Text hidden in image pixels | OCR text is scanned; an image with no recognised text is allowed with an `ocr_no_text` finding | **Gap**: OCR cannot see what it cannot read; Tesseract never run for real |
 
 ## Known gaps
 
 - **Partial NER**: a local spaCy model finds person names and places (about half of all names on public held-out data), but addresses remain heuristic, and usernames and IDs are mostly missed. Its CPU cost cuts engine throughput by about 70 % (docs/verification/11-pii-improvement-cycle.md).
-- **No ML classifier**: paraphrased/semantic injections and jailbreaks can evade rules.
+- **The tier-2 classifier is a trade-off, not a fix**: with thresholds that keep false blocks low on business text it catches 13.3 % of an independent injection set (rules: 1.7 %); the rest depends on the AI judge, which has not been measured live (no key). Long inputs are only partly classified (first and last 4 windows) and can fail closed on `timeout` under load. The red team so far used a self-authored offline generator, which is biased towards what the detectors already know.
 - **Business-data classifiers absent**: proprietary source code, architecture, contracts, pricing.
 - **Obfuscated PII/secrets** (e.g. spaced-out emails or keys) are not normalized like injections are.
 - **Self-authored evaluation set**: 100% pass demonstrates no regression on known cases, not resistance to unseen attacks.

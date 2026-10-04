@@ -16,7 +16,7 @@ reaches a model. If any security component is unavailable, the request is refuse
 The project lives in [`sentinel-ai/`](sentinel-ai/); this page mirrors [`sentinel-ai/README.md`](sentinel-ai/README.md).
 
 **Tech stack:** TypeScript (Node.js 20, Fastify, Zod, jose, pg) · Next.js + React + Tailwind CSS · Python 3.12 (FastAPI,
-Pydantic, spaCy NER, cryptography, redis-py, pypdf, defusedxml) · PostgreSQL 18 · Redis · ClamAV · Tesseract · Docker Compose · Helm ·
+Pydantic, spaCy NER, ONNX Runtime, Anthropic SDK, cryptography, redis-py, pypdf, defusedxml) · PostgreSQL 18 · Redis · ClamAV · Tesseract · Docker Compose · Helm ·
 Terraform · GitHub Actions · Vitest · pytest · mypy · Playwright · k6
 
 ## Architecture
@@ -68,6 +68,9 @@ Every row below was executed on real infrastructure, not mocks. The evidence (co
 | EICAR blocked by real antivirus; email in a screenshot OCR'd and masked | real ClamAV 1.5.4, Tesseract 5.5 | [05](sentinel-ai/docs/verification/05-clamav-tesseract.md) |
 | The model receives `j***@example.com`, never the address; a prompt with a secret never reaches the model | real Ollama (`qwen2:0.5b`), with a recording proxy | [06](sentinel-ai/docs/verification/06-real-provider.md) |
 | No fixable HIGH/CRITICAL CVEs in any image; no secret in the tree | Trivy, gitleaks, pnpm audit, pip-audit | [07](sentinel-ai/docs/verification/07-ci.md) |
+| v2 cascade: a pinned local classifier blocks injections in the running stack; `/ready` proves it loads and works; the engine can reach only the AI judge's API (other hosts refused, a library's telemetry call blocked) | Docker stack, ONNX Runtime, allow-list egress proxy; 77 container checks | [12](sentinel-ai/docs/verification/12-ai-vs-ai.md) |
+| v2 explanations, replay, red-team rounds stored and shown (migration 0009, RLS) | PostgreSQL in the stack + PGlite suites; live red-team rounds against the gateway | [12](sentinel-ai/docs/verification/12-ai-vs-ai.md) |
+| **Not verified:** the Claude judge and Claude red-team generator (no API key; built and tested against fakes only) | — | [12](sentinel-ai/docs/verification/12-ai-vs-ai.md#7-blockers-and-what-the-owner-must-do) |
 
 ## Numbers
 
@@ -113,15 +116,17 @@ the self-authored suite.
 
 ### 2. Prompt injection and jailbreak
 
-Held-out test splits ([details](sentinel-ai/docs/verification/08-independent-evaluation.md)):
+Held-out test splits, AI judge off ([rules](sentinel-ai/docs/verification/08-independent-evaluation.md),
+[cascade](sentinel-ai/docs/verification/12-ai-vs-ai.md)):
 
-| Dataset | Detection rate | False-positive rate |
-|---|---|---|
-| deepset/prompt-injections (EN + DE) | **1.7 %** | 0.0 % |
-| jackhhao/jailbreak-classification | **39.6 %** | 0.0 % |
+| Dataset | Rules only | **Rules + local classifier (current)** | False-positive rate (current) |
+|---|---|---|---|
+| deepset/prompt-injections (EN + DE; the classifier never saw it) | 1.7 % | **13.3 %** | 0.0 % |
+| jackhhao/jailbreak-classification (the classifier was trained on it: optimistic) | 39.6 % | **61.2 %** | 0.0 % |
 
-The filter is precise but has low recall against attacks written by other people. The self-authored suite (524 records,
-100 % of critical cases) overstates real-world coverage. An ML injection classifier is the next milestone.
+The classifier's thresholds keep false blocks on ordinary business text at 0.7–2.3 %. A looser threshold reached 43 % on
+deepset but blocked 39–54 % of business text, so it was rejected ([why](#ai-vs-ai)). The self-authored suite (524 records,
+100 % of critical cases) overstates real-world coverage.
 
 ### 3. Performance
 
@@ -136,9 +141,55 @@ counted. Before and after the NER layer were measured on the same machine and da
 | Standalone scan, 1 in flight (p50 · p95 · p99) | 21 · 28 · 37 ms | **29 · 36 · 50 ms** |
 | Throughput at saturation, single engine process | ≈ 66–78 chat · ≈ 141–150 scan req/s | **≈ 16–23 chat · ≈ 43–44 scan req/s** |
 
-Per request, NER costs 10–36 ms. **Under load, throughput falls by about 70 %**, because NER is CPU-bound and the engine runs
-as a single process. This is not yet mitigated (more engine workers or replicas would help). All numbers are single-instance,
-with 0 failed requests; run-to-run variance on a shared laptop is tens of percent.
+Per request, NER costs 10–36 ms. Under load, throughput fell by about 70 % because NER is CPU-bound; **configurable engine
+workers now recover most of it** (53 → 89 scans/s with 2 workers, rules + NER). The local classifier adds ~50 ms per request
+and costs about two thirds of scan throughput (17.6 → 25.8 scans/s with 1 → 2 workers, ~1.2 GiB memory per worker)
+([details](sentinel-ai/docs/verification/12-ai-vs-ai.md)). All numbers are single-instance, with 0 failed requests; run-to-run variance
+on a shared laptop is tens of percent.
+
+## AI vs AI
+
+**Defence: a detection cascade.** Cheap, deterministic checks decide first; models are consulted only when they are unsure,
+and they can only add a block, never remove one ([ADR-0007](sentinel-ai/docs/architecture/adr/0007-additive-ml-and-llm-judge.md)).
+
+```mermaid
+flowchart LR
+    IN[prompt] --> T1["Tier 1: rules + NER<br/>(free, ~15 ms)"]
+    T1 -->|threat found| BLOCK1[BLOCK]
+    T1 -->|"sanitize (mask/tokenize)"| T2["Tier 2: local ONNX classifier<br/>(raw text never leaves the engine)"]
+    T2 -->|score below band| ALLOW[ALLOW]
+    T2 -->|score at the top| BLOCK2[BLOCK]
+    T2 -->|uncertain band, ~10-20 %| T3["Tier 3: Claude judge<br/>(sanitized text only, cached, budget-capped)"]
+    T3 -->|attack| BLOCK3[BLOCK]
+    T3 -->|benign| ALLOW
+    T3 -.->|timeout / invalid / over budget| FC["fail closed: BLOCK"]
+    T3 --- PX[("egress proxy:<br/>api.anthropic.com only")]
+```
+
+* **Explainable and replayable.** Every decision records which tier decided, the detectors and scores, the policy version and
+  every component version, plus a keyed hash of the input (never the input). Given the original text,
+  `POST /v1/events/{id}/replay` re-runs the decision with the recorded policy and verdict and shows whether it is identical.
+  The dashboard event page answers "why was this blocked?".
+* **Attack: an AI red team.** `scripts/security/red_team.py` generates new attacks (direct and indirect injection,
+  obfuscation, role-play jailbreaks, data exfiltration, Hindi/Hinglish), fires them at the local gateway, scores each by tier
+  and keeps what got through as a versioned regression set. Dashboard → **Red team** shows rounds and trends. One command:
+  `bash scripts/demo/ai-vs-ai.sh`.
+
+**Numbers** ([evidence](sentinel-ai/docs/verification/12-ai-vs-ai.md)):
+
+| | Result |
+|---|---|
+| Independent injection set (deepset, held out) | rules 1.7 % → **cascade 13.3 %** detected, 0 % false positives (judge off) |
+| Benign business text with PII (ai4privacy, held out) | **0.7–2.3 %** falsely blocked as injection (a benchmark-tuned threshold blocked 39–54 %) |
+| Red team, offline seed generator, 48 attacks | 4.2 % got through (loose threshold) · **39.6 %** (current threshold) |
+| Judge cost (worst case, measured call rates) | ~**USD 0.33 per 1,000 requests** with the judge on, 0 off; hard cap USD 5 |
+| AI spend in this verification | **USD 0.00**: no Anthropic key was available |
+
+**Limitations.** The Claude judge and the Claude red-team generator are **built and tested but have never run live** (no
+key): every judge number above is "judge off", and both red-team rounds used a self-authored, non-AI seed generator that is
+biased towards what the detectors already catch. The classifier must be very conservative on its own to avoid blocking
+business text, so most of the remaining recall depends on the judge. Long inputs are only partly classified (the start and
+end), and can fail closed on timeouts under load.
 
 ## Quick start
 
@@ -165,15 +216,17 @@ To check the whole stack (from `sentinel-ai/`): `bash scripts/development/docker
 
 * **Detection recall is still limited** (see the numbers above). The NER layer finds about half of all names. Addresses,
   usernames and IDs are mostly missed, and 33–47 % of PII-bearing records in the public PII sets still pass unchanged. Most
-  third-party prompt injections are missed (rules only, no ML classifier).
-* **NER costs throughput**: about 70 % fewer requests per second on one engine process (see Performance).
+  third-party prompt injections are still missed (13.3 % caught with the AI judge off; see [AI vs AI](#ai-vs-ai)).
+* **Models cost throughput and memory**: NER and the classifier are CPU-bound; more engine workers help, but each needs
+  ~1.2 GiB (see Performance).
+* **The AI judge has never been run live** (no Anthropic key): its accuracy, latency and real cost are unmeasured.
 * **Gemini, OpenAI and Anthropic have never been called for real**: no API keys were available. Those adapters are tested
   against stand-in servers only. Ollama is verified for real.
 * **Rate limiting is per gateway instance.** With N replicas a client gets N× the limit; the shared Redis limiter is designed
   but not built ([why](sentinel-ai/docs/LEARNING.md#7-rate-limiting-per-instance-today-and-the-fix)).
 * Runs on one machine only: no managed-cloud deployment, no multi-node Kubernetes (Helm verified on a single-node `kind`
   cluster), and no soak test. Benchmarks share one laptop CPU with the load generator.
-* No SSO/MFA, and no ML prompt-injection classifier (roadmap phases 3–4).
+* No SSO/MFA (roadmap phase 4).
 
 Full status: [sentinel-ai/docs/architecture/roadmap.md](sentinel-ai/docs/architecture/roadmap.md) · design decisions explained:
 [sentinel-ai/docs/LEARNING.md](sentinel-ai/docs/LEARNING.md) · decisions taken during verification: [sentinel-ai/docs/decisions-log.md](sentinel-ai/docs/decisions-log.md).
