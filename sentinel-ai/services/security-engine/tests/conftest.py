@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from app.detectors.registry import default_registry
+from app.detectors.registry import DetectorRegistry, default_registry
 from app.pipelines import ScanPipeline
 from app.utils.checksums import luhn_check_digit, verhoeff_check_digit
 
@@ -49,3 +49,8 @@ def valid_card(prefix: str = "411111111111111") -> str:
 @pytest.fixture(scope="session")
 def pipeline() -> ScanPipeline:
     return ScanPipeline(default_registry())
+
+
+@pytest.fixture(scope="session")
+def registry() -> DetectorRegistry:
+    return default_registry()  # real rules + real NER model, loaded once

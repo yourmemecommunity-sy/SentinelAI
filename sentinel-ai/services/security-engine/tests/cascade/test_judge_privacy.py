@@ -1,7 +1,7 @@
 """PRIVACY: raw personal data never reaches the external judge; only Sentinel's sanitized text does."""
 from app.cascade.judge import FakeJudge
 from app.models.scan import ScanRequest
-from tests.cascade.conftest import make_pipeline, verdict
+from cascade_helpers import make_pipeline, verdict
 
 EMAIL = "maria.gonzalez@example.com"
 PHONE = "+1 415 555 0142"

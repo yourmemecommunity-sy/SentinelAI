@@ -9,7 +9,7 @@ from app.cascade.budget import BudgetExceeded, BudgetLedger, cost_usd
 from app.cascade.judge import (
     SYSTEM_PROMPT, AnthropicJudge, CachedJudge, FakeJudge, JudgeError, build_user_message, parse_verdict,
 )
-from tests.cascade.conftest import verdict
+from cascade_helpers import verdict
 
 OK = '{"verdict": "benign", "category": "benign", "confidence": 0.93, "reason": "ordinary request"}'
 

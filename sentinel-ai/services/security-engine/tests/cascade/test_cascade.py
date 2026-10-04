@@ -5,7 +5,7 @@ from app.models.scan import ScanRequest
 from app.models.types import Action, Direction
 from app.pipelines import ScanPipeline
 from app.policies import Policy
-from tests.cascade.conftest import CONFIG, make_pipeline, verdict
+from cascade_helpers import CONFIG, make_pipeline, verdict
 
 BENIGN = "Summarise the attached meeting notes in three bullet points."
 

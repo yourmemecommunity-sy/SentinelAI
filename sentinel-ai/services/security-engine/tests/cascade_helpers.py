@@ -1,18 +1,12 @@
-import pytest
-
+"""Shared helpers for the cascade tests (tests/cascade/)."""
 from app.cascade.cascade import Cascade, CascadeConfig
 from app.cascade.classifier import StaticClassifier
 from app.cascade.judge import FakeJudge, JudgeVerdict
 from app.config.settings import Settings
-from app.detectors.registry import DetectorRegistry, default_registry
+from app.detectors.registry import DetectorRegistry
 from app.pipelines import ScanPipeline
 
 CONFIG = CascadeConfig(threshold=0.5, band_low=0.2, band_high=0.9)
-
-
-@pytest.fixture(scope="session")
-def registry() -> DetectorRegistry:
-    return default_registry()  # real rules + real NER model, loaded once
 
 
 def verdict(v: str = "attack", category: str = "direct_injection", confidence: float = 0.9) -> JudgeVerdict:

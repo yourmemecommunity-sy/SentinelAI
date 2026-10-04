@@ -10,7 +10,7 @@ from app.cascade.cascade import Cascade
 from app.cascade.classifier import ClassifierUnavailable, OnnxInjectionClassifier, StaticClassifier
 from app.cascade.judge import FakeJudge
 from app.models.scan import ScanRequest
-from tests.cascade.conftest import CONFIG, verdict
+from cascade_helpers import CONFIG, verdict
 
 MODEL = Path(__file__).resolve().parents[2] / "models" / "injection-classifier"
 needs_model = pytest.mark.skipif(not (MODEL / "model.onnx").exists(), reason="classifier files not fetched")
