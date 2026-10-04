@@ -1,4 +1,4 @@
-import type { Action, Direction, EntityType, RiskLevel, ScanResult } from "@sentinelai/shared-types";
+import { storableExplanation, type Action, type Direction, type EntityType, type Explanation, type RiskLevel, type ScanResult } from "@sentinelai/shared-types";
 import type { TenantDb } from "../db/tenantDb.js";
 
 export type EventType = "scan" | "ai_request" | "ai_response" | "fail_closed" | "file_scan";
@@ -23,6 +23,8 @@ export interface SecurityEventInput {
   failClosedReason: string | null;
   detectorVersion: string;
   latencyMs: number;
+  /** Why the decision was made (no content; the judge's free-text reason is removed before storage). */
+  explanation?: Explanation | null;
   /** Optional per-detection metadata (entity, severity, confidence, location, digest). Skipped in zero-retention orgs. */
   scan?: ScanResult;
 }
@@ -36,6 +38,7 @@ export function eventToWire(e: StoredEvent) {
     model: e.model, direction: e.direction, event_type: e.eventType, risk_level: e.riskLevel, risk_score: e.riskScore, action: e.action,
     entity_types: e.entityTypes, policy_id: e.policyId, failed_closed: e.failedClosed, fail_closed_reason: e.failClosedReason,
     detector_version: e.detectorVersion, latency_ms: e.latencyMs, timestamp: e.timestamp,
+    explanation: e.explanation ?? null,
   };
 }
 
@@ -65,12 +68,14 @@ export function eventFromScan(
     failClosedReason: scan.fail_closed_reason ?? null,
     detectorVersion: scan.detector_version,
     latencyMs: scan.latency_ms,
+    explanation: scan.explanation ? storableExplanation(scan.explanation) : null,
     scan,
   };
 }
 
 const COLUMNS = `id, organization_id, user_id, api_key_id, request_id, application, provider, model, direction, event_type,
-  risk_level, risk_score, action, entity_types, policy_id, failed_closed, fail_closed_reason, detector_version, latency_ms, "timestamp"`;
+  risk_level, risk_score, action, entity_types, policy_id, failed_closed, fail_closed_reason, detector_version, latency_ms, "timestamp",
+  explanation`;
 
 type Row = Record<string, unknown>;
 const toStored = (r: Row): StoredEvent => ({
@@ -82,6 +87,7 @@ const toStored = (r: Row): StoredEvent => ({
   failedClosed: r.failed_closed as boolean, failClosedReason: (r.fail_closed_reason as string) ?? null,
   detectorVersion: r.detector_version as string, latencyMs: Number(r.latency_ms ?? 0),
   timestamp: new Date(r.timestamp as string).toISOString(),
+  explanation: (r.explanation as Explanation | null) ?? null,
 });
 
 export class PgEventSink implements EventSink {
@@ -91,10 +97,12 @@ export class PgEventSink implements EventSink {
     return this.db.withTenant(e.organizationId, async (q) => {
       const { rows } = await q.query<{ id: string }>(
         `INSERT INTO security_events (organization_id, user_id, api_key_id, request_id, application, provider, model, direction,
-           event_type, risk_level, risk_score, action, entity_types, policy_id, failed_closed, fail_closed_reason, detector_version, latency_ms)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
+           event_type, risk_level, risk_score, action, entity_types, policy_id, failed_closed, fail_closed_reason, detector_version, latency_ms,
+           explanation)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id`,
         [e.organizationId, e.userId, e.apiKeyId, e.requestId, e.application, e.provider, e.model, e.direction, e.eventType,
-          e.riskLevel, e.riskScore, e.action, e.entityTypes, e.policyId, e.failedClosed, e.failClosedReason, e.detectorVersion, e.latencyMs]);
+          e.riskLevel, e.riskScore, e.action, e.entityTypes, e.policyId, e.failedClosed, e.failClosedReason, e.detectorVersion, e.latencyMs,
+          e.explanation ? JSON.stringify(storableExplanation(e.explanation)) : null]);
       const id = rows[0]!.id;
 
       // Zero-retention orgs keep only the metadata row above: no per-detection offsets or digests.
@@ -161,7 +169,7 @@ export class InMemoryEventSink implements EventSink {
     if (this.failNext) { this.failNext = false; throw new Error("audit store unavailable"); }
     const { scan: _scan, ...rest } = e;
     const id = crypto.randomUUID();
-    this.events.unshift({ ...rest, id, timestamp: new Date().toISOString() });
+    this.events.unshift({ ...rest, explanation: e.explanation ? storableExplanation(e.explanation) : null, id, timestamp: new Date().toISOString() });
     return id;
   }
   async list(orgId: string, f: EventFilter) {

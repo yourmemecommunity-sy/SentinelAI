@@ -1,0 +1,39 @@
+{
+  "model": "protectai/deberta-v3-base-prompt-injection-v2",
+  "variant": "fp32",
+  "revision": "see classifier.json / selection run",
+  "chosen_on": [
+    "deepset/prompt-injections"
+  ],
+  "rule": {
+    "max_fp": 0.02,
+    "max_fp_high": 0.005,
+    "max_judge_rate": 0.2
+  },
+  "threshold": 0.0064,
+  "band_low": 1e-05,
+  "band_high": 0.97694,
+  "train_at_threshold": {
+    "detection_rate": 0.5271,
+    "false_positive_rate": 0.0175
+  },
+  "train_judge_call_rate": 0.1886,
+  "train_attacks_in_band": 74,
+  "train_benign_in_band": 29,
+  "per_dataset": {
+    "deepset/prompt-injections": {
+      "contaminated": false,
+      "at_chosen_threshold": {
+        "detection_rate": 0.5271,
+        "false_positive_rate": 0.0175
+      }
+    },
+    "jackhhao/jailbreak-classification": {
+      "contaminated": true,
+      "at_chosen_threshold": {
+        "detection_rate": 0.8994,
+        "false_positive_rate": 0.0077
+      }
+    }
+  }
+}

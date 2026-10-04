@@ -1,11 +1,59 @@
 import { z } from "zod";
-import { ACTIONS, ENTITY_TYPES, SEVERITIES, type Action, type Policy, type ScanRequest, type ScanResult } from "@sentinelai/shared-types";
+import {
+  ACTIONS, ENTITY_TYPES, SEVERITIES, type Action, type Direction, type Explanation, type Policy, type RequestContext,
+  type ScanRequest, type ScanResult,
+} from "@sentinelai/shared-types";
+
+/** Input to the engine's /v1/replay (see services/security-engine/app/replay.py). Read-only on the engine side. */
+export interface ReplayRequest {
+  text: string;
+  organization_id: string;
+  direction: Direction;
+  context?: RequestContext;
+  policy?: Policy;
+  recorded: { decision: Action; explanation: Explanation };
+  live_judge?: boolean;
+}
+
+export interface ReplayResult {
+  content_matches: boolean;
+  identical: boolean;
+  recorded_decision: Action;
+  replayed_decision: Action | null;
+  recorded_decided_by: string;
+  replayed_decided_by: string | null;
+  differences: string[];
+  versions: { name: string; recorded: string | null; current: string | null; same: boolean }[];
+  versions_identical: boolean;
+  judge_source: string;
+  explanation: Explanation | null;
+}
 
 export interface SecurityScanner {
   /** Never throws and never returns unsafe output: any failure becomes a fail-closed BLOCK result. */
   scan(req: ScanRequest): Promise<ScanResult>;
   ready(): Promise<boolean>;
+  /** Re-runs a recorded decision. Throws on failure (replay is a diagnostic, nothing fails open). Optional. */
+  replay?(req: ReplayRequest): Promise<ReplayResult>;
 }
+
+const ExplanationSchema = z.object({
+  decided_by: z.enum(["rules", "classifier", "judge", "fail_closed"]),
+  tier: z.number().int().min(1).max(3),
+  detectors_fired: z.array(z.object({ detector: z.string(), entity: z.enum(ENTITY_TYPES), count: z.number().int(),
+    max_confidence: z.number(), tier: z.number().int() })),
+  classifier: z.object({ model: z.string(), score: z.number(), threshold: z.number(), band_low: z.number().nullable(),
+    band_high: z.number().nullable(), band: z.enum(["attack", "uncertain", "benign"]),
+    windows_scored: z.number().int().min(0).optional(), windows_total: z.number().int().min(0).optional() }).nullable().optional(),
+  judge: z.object({ called: z.boolean(), cached: z.boolean(), skipped_reason: z.string().nullable(),
+    verdict: z.enum(["attack", "benign"]).nullable(), category: z.string().nullable(), confidence: z.number().nullable(),
+    reason: z.string().nullable().optional(), model: z.string().nullable(), prompt_version: z.string().nullable(),
+    latency_ms: z.number().nullable() }).nullable().optional(),
+  policy: z.object({ policy_id: z.string(), policy_version: z.number().int(), deciding_entity: z.enum(ENTITY_TYPES).nullable(),
+    deciding_action: z.enum(ACTIONS), source: z.enum(["policy_rule", "baseline", "risk_escalation", "no_detection", "fail_closed"]) }),
+  versions: z.record(z.string()),
+  content_hmac: z.string().regex(/^[0-9a-f]{64}$/),
+});
 
 const WITHHOLDING: ReadonlySet<Action> = new Set<Action>(["BLOCK", "QUARANTINE"]);
 export const withholdsContent = (a: Action): boolean => WITHHOLDING.has(a);
@@ -29,6 +77,8 @@ const ResultSchema = z.object({
   policy_id: z.string(),
   detector_version: z.string(),
   latency_ms: z.number(),
+  // Optional for compatibility with engines older than 2026.10; a malformed explanation fails the whole result closed.
+  explanation: ExplanationSchema.nullable().optional(),
 });
 
 /** A synthetic BLOCK used whenever the gateway cannot obtain a trustworthy decision. */
@@ -51,6 +101,15 @@ export interface HttpSecurityClientOptions {
    * first and answers with a clear fail-closed reason instead of the gateway timing out. Default 60.
    */
   timeoutPerKcharMs?: number;
+  /**
+   * Allowance for the engine's tier-2 classifier: per estimated 512-token window (~1,500 characters, rounded up), at most
+   * `classifierMaxWindows` windows (the engine scores no more). Defaults 1,800 ms and 4: slightly above the engine's own
+   * per-window budget (SENTINEL_CLASSIFIER_MS_PER_WINDOW=1600), so the engine fails closed first with a clear reason.
+   */
+  classifierMsPerWindow?: number;
+  classifierMaxWindows?: number;
+  /** Allowance for the engine's optional AI judge (its own timeout is 4 s). Default 4,500 ms. */
+  judgeAllowanceMs?: number;
   fetch?: typeof fetch;
 }
 
@@ -66,7 +125,7 @@ export class HttpSecurityClient implements SecurityScanner {
         method: "POST",
         headers: { "content-type": "application/json", ...(this.o.token ? { "x-internal-token": this.o.token } : {}) },
         body: JSON.stringify(req),
-        signal: AbortSignal.timeout(this.o.timeoutMs + (this.o.timeoutPerKcharMs ?? 60) * Math.ceil(req.text.length / 1000)),
+        signal: AbortSignal.timeout(this.timeoutFor(req.text.length)),
       });
     } catch (err) {
       const timeout = err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError");
@@ -85,6 +144,25 @@ export class HttpSecurityClient implements SecurityScanner {
     if (!withheld && r.sanitized_text === null) return failClosedResult("engine_invariant_violation", policyId);
     if (r.failed_closed && r.decision !== "BLOCK") return failClosedResult("engine_invariant_violation", policyId);
     return r as unknown as ScanResult;
+  }
+
+  /** Engine time budget mirrored here: base + NER per 1,000 chars + classifier per window (capped). */
+  timeoutFor(chars: number): number {
+    const windows = Math.min(this.o.classifierMaxWindows ?? 4, Math.max(1, Math.ceil(chars / 1500)));
+    return this.o.timeoutMs + (this.o.timeoutPerKcharMs ?? 60) * Math.ceil(chars / 1000) + (this.o.classifierMsPerWindow ?? 1800) * windows
+      + (this.o.judgeAllowanceMs ?? 4500);
+  }
+
+  async replay(req: ReplayRequest): Promise<ReplayResult> {
+    const res = await this.f(`${this.o.baseUrl}/v1/replay`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(this.o.token ? { "x-internal-token": this.o.token } : {}) },
+      body: JSON.stringify(req),
+      // A replay may call the judge (live_judge) and runs the full pipeline: allow the scan budget plus the judge timeout.
+      signal: AbortSignal.timeout(this.timeoutFor(req.text.length) + 5000),
+    });
+    if (!res.ok) throw new Error(`engine_http_${res.status}`);
+    return (await res.json()) as ReplayResult;
   }
 
   async ready(): Promise<boolean> {

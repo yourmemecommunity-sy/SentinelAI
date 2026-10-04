@@ -11,6 +11,7 @@ const NAV = [
   { href: "/dashboard", label: "Overview" },
   { href: "/events", label: "Security events" },
   { href: "/threats", label: "Threats" },
+  { href: "/red-team", label: "Red team" },
   { href: "/files", label: "File scan" },
   { href: "/policies", label: "Policies" },
   { href: "/usage", label: "Usage" },

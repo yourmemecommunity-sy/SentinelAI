@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { use } from "react";
 import { Shell } from "@/components/dashboard/Shell";
+import { ExplanationPanel } from "@/components/security-events/ExplanationPanel";
 import { ActionBadge, Card, Chip, Loading, Notice, RiskBadge } from "@/components/ui/primitives";
 import { useApi } from "@/hooks/useApi";
 import { formatTime } from "@/lib/utils/format";
@@ -39,6 +40,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               <Row k="Scan latency">{e.latency_ms} ms</Row>
             </dl>
           </Card>
+          {e.explanation
+            ? <ExplanationPanel eventId={e.id} explanation={e.explanation} action={e.action} />
+            : <Notice kind="info">No explanation was recorded for this event (it predates explainable decisions).</Notice>}
         </>
       )}
     </Shell>

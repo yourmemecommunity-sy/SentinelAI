@@ -118,18 +118,44 @@ services:
       <<: *python-health
     restart: unless-stopped
 
+  # The engine's only route out: an allow-list CONNECT proxy (api.anthropic.com:443) for the tier-3 AI judge. It joins
+  # the internal network and an egress network; the engine itself stays on the internal network only. TLS is end to end,
+  # so the proxy never sees content.
+  egress-proxy:
+    build: { context: ./services/egress-proxy }
+    image: sentinel-ai/egress-proxy:local
+    <<: *hardened
+    mem_limit: 64m
+    environment:
+      EGRESS_ALLOW: api.anthropic.com:443
+    networks: [backend, judge-egress]
+    healthcheck:
+      test: ["CMD", "python", "proxy.py", "healthcheck"]
+      <<: *python-health
+    restart: unless-stopped
+
   security-engine:
     build: { context: ./services/security-engine }
     image: sentinel-ai/security-engine:local
     <<: *hardened
-    mem_limit: 512m
+    # per worker: spaCy en_core_web_md + the tier-2 classifier measured at ~1.2 GiB resident (docs/verification/12-ai-vs-ai.md)
+    mem_limit: ${SECURITY_ENGINE_MEM_LIMIT:-2g}
     environment:
       SENTINEL_ENV: production
       SECURITY_ENGINE_TOKEN: ${SECURITY_ENGINE_TOKEN:?run scripts/development/docker-secrets.sh}
+      SENTINEL_DIGEST_KEY: ${SENTINEL_DIGEST_KEY:?run scripts/development/docker-secrets.sh}
       VAULT_URL: http://token-vault:8004
       VAULT_TOKEN: ${VAULT_TOKEN}
+      # Tier 3 (optional): without a key the judge is off and the local classifier decides alone.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BUDGET_USD: ${ANTHROPIC_BUDGET_USD:-5}
+      ANTHROPIC_USAGE_LEDGER: /tmp/anthropic-usage.json
+      HTTPS_PROXY: http://egress-proxy:8899
+      NO_PROXY: token-vault,localhost,127.0.0.1
+      SECURITY_ENGINE_WORKERS: ${SECURITY_ENGINE_WORKERS:-2}
     depends_on:
       token-vault: { condition: service_healthy }
+      egress-proxy: { condition: service_healthy }
     networks: [backend]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8001/ready',timeout=4).status==200 else 1)"]
@@ -247,6 +273,7 @@ networks:
     internal: true            # no egress: engine, vault, scanner, databases cannot reach the internet
   frontend: {}
   updates: {}
+  judge-egress: {}          # egress-proxy only (allow-list: api.anthropic.com:443)
 
 volumes:
   pgdata:

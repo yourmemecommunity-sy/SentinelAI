@@ -78,3 +78,6 @@ class Policy(BaseModel):
     organization_id: str | None = Field(default=None, max_length=128)
     version: int = Field(default=1, ge=1)
     rules: list[PolicyRule] = Field(default_factory=list, max_length=500)
+    # Organisation switch for the external LLM judge (tier 3). False -> the judge is never called for this organisation;
+    # the local classifier then decides alone. The judge only ever receives sanitized text either way.
+    external_judge: bool = True

@@ -8,6 +8,8 @@ dependencies = [
     # NER layer: spaCy + a pinned English model, run locally (app/detectors/ner)
     "spacy>=3.8,<3.9",
     "en_core_web_md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl",
+    # tier 2 classifier (local ONNX) and tier 3 judge (optional; Anthropic SDK)
+    "onnxruntime>=1.20,<2", "tokenizers>=0.20,<1", "numpy>=1.26", "anthropic>=0.69,<1",
 ]
 
 [project.optional-dependencies]

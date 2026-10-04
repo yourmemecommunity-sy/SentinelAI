@@ -70,4 +70,34 @@ export interface ScanResult {
   policy_id: string;
   detector_version: string;
   latency_ms: number;
+  explanation?: Explanation | null;
+}
+
+/**
+ * Why a decision was made. Mirrors services/security-engine/app/models/explanation.py. Contains no content: only
+ * detector names, scores, versions and a keyed HMAC of the scanned text (used to check a replay's input).
+ */
+export type DecidedBy = "rules" | "classifier" | "judge" | "fail_closed";
+export interface Explanation {
+  decided_by: DecidedBy;
+  tier: number; // 1 rules + NER, 2 local classifier, 3 LLM judge
+  detectors_fired: { detector: string; entity: EntityType; count: number; max_confidence: number; tier: number }[];
+  classifier?: { model: string; score: number; threshold: number; band_low: number | null; band_high: number | null;
+    band: "attack" | "uncertain" | "benign";
+    /** windows_scored < windows_total: only the start and end of a long text were classified (tier 1 scans all of it). */
+    windows_scored?: number; windows_total?: number } | null;
+  judge?: { called: boolean; cached: boolean; skipped_reason: string | null; verdict: "attack" | "benign" | null;
+    category: string | null; confidence: number | null;
+    /** Model prose about the (masked) text: returned to the caller, NEVER stored. */
+    reason?: string | null;
+    model: string | null; prompt_version: string | null; latency_ms: number | null } | null;
+  policy: { policy_id: string; policy_version: number; deciding_entity: EntityType | null; deciding_action: Action;
+    source: "policy_rule" | "baseline" | "risk_escalation" | "no_detection" | "fail_closed" };
+  versions: Record<string, string>;
+  content_hmac: string;
+}
+
+/** Explanation without transient fields (the judge's free-text reason): the only form that may be persisted. */
+export function storableExplanation(e: Explanation): Explanation {
+  return e.judge ? { ...e, judge: { ...e.judge, reason: null } } : e;
 }

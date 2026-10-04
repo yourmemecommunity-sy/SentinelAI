@@ -13,6 +13,9 @@ const Schema = z.object({
   SECURITY_TIMEOUT_MS: z.coerce.number().int().min(50).max(30_000).default(2000),
   // Added per 1,000 characters scanned (the engine's NER cost grows with length). Must exceed the engine's own allowance.
   SECURITY_TIMEOUT_PER_KCHAR_MS: z.coerce.number().int().min(0).max(1000).default(60),
+  // Engine tier 2 (classifier, per 512-token window, at most 4) and tier 3 (AI judge) allowances; see securityClient.ts.
+  SECURITY_TIMEOUT_PER_WINDOW_MS: z.coerce.number().int().min(0).max(10_000).default(1800),
+  SECURITY_TIMEOUT_JUDGE_MS: z.coerce.number().int().min(0).max(30_000).default(4500),
   DATABASE_URL: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
@@ -50,6 +53,8 @@ export interface AppConfig {
   securityEngineToken: string | undefined;
   securityTimeoutMs: number;
   securityTimeoutPerKcharMs: number;
+  securityTimeoutPerWindowMs: number;
+  securityTimeoutJudgeMs: number;
   databaseUrl: string | undefined;
   geminiApiKey: string | undefined;
   openaiApiKey: string | undefined;
@@ -103,6 +108,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     securityEngineToken: e.SECURITY_ENGINE_TOKEN,
     securityTimeoutMs: e.SECURITY_TIMEOUT_MS,
     securityTimeoutPerKcharMs: e.SECURITY_TIMEOUT_PER_KCHAR_MS,
+    securityTimeoutPerWindowMs: e.SECURITY_TIMEOUT_PER_WINDOW_MS,
+    securityTimeoutJudgeMs: e.SECURITY_TIMEOUT_JUDGE_MS,
     databaseUrl: e.DATABASE_URL,
     geminiApiKey: e.GEMINI_API_KEY || undefined,
     openaiApiKey: e.OPENAI_API_KEY || undefined,

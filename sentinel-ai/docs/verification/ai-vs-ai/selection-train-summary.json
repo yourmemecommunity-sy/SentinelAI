@@ -1,0 +1,110 @@
+{
+ "candidates": [
+  {
+   "model": "protectai/deberta-v3-base-prompt-injection-v2",
+   "variant": "fp32",
+   "revision": "see classifier.json / selection run",
+   "licence": "apache-2.0",
+   "trained_on": [
+    "jackhhao/jailbreak-classification"
+   ],
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": false,
+     "auc": 0.8815,
+     "at_0.5": {
+      "detection_rate": 0.4286,
+      "false_positive_rate": 0.0117,
+      "tp": 87,
+      "fp": 4,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": true,
+     "auc": 0.9842,
+     "at_0.5": {
+      "detection_rate": 0.833,
+      "false_positive_rate": 0.0039,
+      "tp": 439,
+      "fp": 2,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   }
+  },
+  {
+   "model": "fmops/distilbert-prompt-injection",
+   "variant": "fp32",
+   "revision": "see classifier.json / selection run",
+   "licence": "apache-2.0",
+   "trained_on": [
+    "deepset/prompt-injections"
+   ],
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": true,
+     "auc": 1.0,
+     "at_0.5": {
+      "detection_rate": 1.0,
+      "false_positive_rate": 0.0,
+      "tp": 203,
+      "fp": 0,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": false,
+     "auc": 0.9337,
+     "at_0.5": {
+      "detection_rate": 0.9962,
+      "false_positive_rate": 0.9768,
+      "tp": 525,
+      "fp": 505,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   }
+  },
+  {
+   "model": "fmops/distilbert-prompt-injection",
+   "variant": "int8",
+   "revision": "see classifier.json / selection run",
+   "licence": "apache-2.0",
+   "trained_on": [
+    "deepset/prompt-injections"
+   ],
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": true,
+     "auc": 1.0,
+     "at_0.5": {
+      "detection_rate": 1.0,
+      "false_positive_rate": 0.0,
+      "tp": 203,
+      "fp": 0,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": false,
+     "auc": 0.934,
+     "at_0.5": {
+      "detection_rate": 0.9962,
+      "false_positive_rate": 0.9826,
+      "tp": 525,
+      "fp": 508,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   }
+  }
+ ],
+ "windowing": "full coverage (fixed)"
+}

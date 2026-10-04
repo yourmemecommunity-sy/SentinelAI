@@ -12,6 +12,8 @@ import type { ApiKeyRepository } from "../repositories/apiKeyRepository.js";
 import { registerAuthRoutes } from "./authRoutes.js";
 import { registerDirectoryRoutes } from "./directoryRoutes.js";
 import { registerProviderRoutes } from "./providerRoutes.js";
+import { registerRedTeamRoutes } from "./redTeamRoutes.js";
+import type { RedTeamRepository } from "../repositories/redTeamRepository.js";
 import type { DirectoryRepository } from "../repositories/directoryRepository.js";
 import type { ProviderRepository } from "../repositories/providerRepository.js";
 import type { RouterSource } from "../providers/orgRouters.js";
@@ -20,6 +22,7 @@ import type { AuthService } from "../services/authService.js";
 import type { AuditLogWriter } from "../events/auditLog.js";
 import { eventToWire, type EventSink } from "../events/eventSink.js";
 import { principalOf, requirePermission } from "../middleware/auth.js";
+import { can } from "../security/rbac.js";
 import type { PolicyRepository } from "../repositories/policyRepository.js";
 import type { ApiKeyAuthenticator } from "../security/apiKeys.js";
 import type { SecurityScanner } from "../security/securityClient.js";
@@ -53,6 +56,8 @@ export interface RouteDeps {
   authLimits?: { ipPerMinute: number; emailPerMinute: number };
   /** When absent, /v1/users, /v1/invitations and /v1/teams are not registered. */
   directory?: DirectoryRepository;
+  /** When absent, /v1/red-team/rounds is not registered. */
+  redTeam?: RedTeamRepository;
   /** When absent, /v1/providers is not registered. */
   providerSettings?: { repo: ProviderRepository; routers: RouterSource; cipher: CredentialCipher | undefined; platformProviders: string[] };
 }
@@ -98,6 +103,7 @@ export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
   if (d.apiKeys) registerApiKeyRoutes(app, { auth: d.auth, keys: d.apiKeys, auditLog: d.auditLog });
   if (d.directory) registerDirectoryRoutes(app, { auth: d.auth, directory: d.directory, auditLog: d.auditLog, pepper: d.config.apiKeyPepper,
     ...(d.authLimits ? { acceptLimit: d.authLimits.ipPerMinute } : {}) });
+  if (d.redTeam) registerRedTeamRoutes(app, { auth: d.auth, repo: d.redTeam, auditLog: d.auditLog });
   if (d.providerSettings) registerProviderRoutes(app, { auth: d.auth, auditLog: d.auditLog, ...d.providerSettings });
   if (d.authService) registerAuthRoutes(app, { authService: d.authService, auth: d.auth, signupEnabled: d.signupEnabled ?? false,
     ...(d.authLimits ? { ipLimit: d.authLimits.ipPerMinute, emailLimit: d.authLimits.emailPerMinute } : {}) });
@@ -112,7 +118,7 @@ export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
     return reply.send({
       request_id: s.request_id, event_id: out.eventId, decision: s.decision, failed_closed: s.failed_closed,
       fail_closed_reason: s.fail_closed_reason ?? null, risk: s.risk, detections: s.detections, entity_actions: s.entity_actions,
-      sanitized_text: s.sanitized_text, policy_id: s.policy_id,
+      sanitized_text: s.sanitized_text, policy_id: s.policy_id, explanation: s.explanation ?? null,
     });
   });
 
@@ -159,6 +165,56 @@ export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
     if (!isUuid(req.params.id)) return reply.code(404).send({ error: "not_found" });
     const ev = await d.events.get(principalOf(req).organizationId, req.params.id);
     return ev ? reply.send(eventToWire(ev)) : reply.code(404).send({ error: "not_found" });
+  });
+
+  // Replay: the caller supplies the ORIGINAL text (events never store it); the engine checks it against the recorded
+  // content HMAC, re-runs the decision with the recorded policy versions and the recorded judge verdict, and reports
+  // whether the decision is identical. Read-only; the replay itself is written to the audit log.
+  const ReplayBodySchema = z.object({ text: z.string().min(1), live_judge: z.boolean().optional() }).strict();
+  app.post<{ Params: { id: string } }>("/v1/events/:id/replay", { preHandler: requirePermission(d.auth, "events:read") }, async (req, reply) => {
+    if (!isUuid(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    const body = ReplayBodySchema.parse(req.body);
+    if (body.text.length > d.config.maxInputChars) return tooLarge(reply);
+    const p = principalOf(req);
+    // Asking the judge again costs money: only roles allowed to run evaluations may do it.
+    if (body.live_judge && !can(p, "evaluation:run")) return reply.code(403).send({ error: "forbidden", permission: "evaluation:run" });
+    if (!d.scanner.replay) return reply.code(501).send({ error: "replay_unsupported" });
+    const ev = await d.events.get(p.organizationId, req.params.id);
+    if (!ev) return reply.code(404).send({ error: "not_found" });
+    if (!ev.explanation) return reply.code(409).send({ error: "event_has_no_explanation", hint: "recorded before explanations existed" });
+    const policy = await d.policies.getRecorded(p.organizationId, ev.policyId);
+    if (policy === null) return reply.code(409).send({ error: "policy_version_missing", policy_id: ev.policyId });
+    const judgeOff = ev.explanation.judge?.skipped_reason === "disabled_by_policy";
+    const effective = judgeOff ? { ...(policy ?? { policy_id: ev.policyId, rules: [] }), external_judge: false } : policy;
+    let result;
+    try {
+      result = await d.scanner.replay({
+        text: body.text, organization_id: p.organizationId, direction: ev.direction,
+        context: { ...(ev.application ? { application: ev.application } : {}), ...(ev.provider ? { provider: ev.provider } : {}),
+          ...(ev.model ? { model: ev.model } : {}) },
+        ...(effective ? { policy: effective } : {}),
+        recorded: { decision: ev.action, explanation: ev.explanation }, live_judge: body.live_judge ?? false,
+      });
+    } catch {
+      return reply.code(502).send({ error: "replay_failed" });
+    }
+    await d.auditLog.record({ organizationId: p.organizationId, actorId: p.userId ?? p.apiKeyId, actorType: p.userId ? "user" : "api_key",
+      action: "event.replay", target: ev.id, metadata: { content_matches: result.content_matches, identical: result.identical,
+        live_judge: body.live_judge ?? false } });
+    return reply.send({ event_id: ev.id, ...result });
+  });
+
+  // ---------------------------------------------------------------- organization: external LLM judge switch
+  app.get("/v1/organization/ai-judge", { preHandler: requirePermission(d.auth, "policies:read") }, async (req) => ({
+    external_judge: await d.policies.getExternalJudge(principalOf(req).organizationId),
+  }));
+  app.put("/v1/organization/ai-judge", { preHandler: requirePermission(d.auth, "policies:write") }, async (req) => {
+    const b = z.object({ external_judge: z.boolean() }).strict().parse(req.body);
+    const p = principalOf(req);
+    await d.policies.setExternalJudge(p.organizationId, b.external_judge);
+    await d.auditLog.record({ organizationId: p.organizationId, actorId: p.userId ?? p.apiKeyId, actorType: p.userId ? "user" : "api_key",
+      action: "organization.external_judge", target: p.organizationId, metadata: { external_judge: b.external_judge } });
+    return { external_judge: b.external_judge };
   });
 
   app.get("/v1/usage", { preHandler: requirePermission(d.auth, "usage:read") }, async (req) => {

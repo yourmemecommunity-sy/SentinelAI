@@ -107,6 +107,13 @@ def rates(c: Counter[str]) -> dict[str, Any]:
     return out
 
 
+def _pct(values: list[float], p: int) -> float | None:
+    if not values:
+        return None
+    s = sorted(values)
+    return round(s[min(len(s) - 1, int(len(s) * p / 100))], 2)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--report", help="write the full JSON report here")
@@ -117,16 +124,25 @@ def main(argv: list[str] | None = None) -> int:
     logging.disable(logging.INFO)  # the engine logs one INFO line per scan; keep the report readable
     from app.models import Direction, ScanRequest
     from app.models.types import THREAT_ENTITIES, Action
+    from app.config.settings import Settings
     from app.pipelines import default_pipeline
+    from app.policies import Policy
 
-    pipeline = default_pipeline()
+    # Settings from the environment: SENTINEL_CASCADE=on (+ SENTINEL_CLASSIFIER_DIR, thresholds, ANTHROPIC_API_KEY) measures the
+    # cascade; unset measures tier 1 only, exactly as the 2026-09-26 baseline did.
+    settings = Settings.from_env()
+    pipeline = default_pipeline(settings)
     report: dict[str, Any] = {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "split": args.split,
-                              "tuned_on_these_datasets": False, "datasets": {}}
+                              "tuned_on_these_datasets": False, "datasets": {},
+                              "configuration": pipeline.versions(Policy(policy_id="sentinelai-baseline"))}
     for name, spec in DATASETS.items():
         splits = ("test",) if args.split == "test" else spec["splits"]
         per_cat: dict[str, Counter[str]] = defaultdict(Counter)
         overall: Counter[str] = Counter()
         entities: Counter[str] = Counter()
+        decided: Counter[str] = Counter()   # "<kind>/<decided_by>" from each result's explanation
+        band: Counter[str] = Counter()      # inputs whose classifier score fell in the judge band, by kind
+        latencies: list[float] = []
         integrity: dict[str, Any] = {}
         misses: list[str] = []
         fps: list[str] = []
@@ -142,6 +158,15 @@ def main(argv: list[str] | None = None) -> int:
                 res = pipeline.scan(ScanRequest(text=text, organization_id="independent-eval", direction=Direction.INPUT))
                 threat = any(d.entity in THREAT_ENTITIES for d in res.detections)
                 blocked = res.decision == Action.BLOCK
+                latencies.append(res.latency_ms)
+                kind_ = "attack" if attack else "benign"
+                if res.explanation is not None:
+                    decided[f"{kind_}/{res.explanation.decided_by}"] += 1
+                    clf = res.explanation.classifier
+                    if clf is not None and clf.band_low is not None and clf.band_low <= clf.score < (clf.band_high or 1.0):
+                        band[kind_] += 1
+                    elif clf is not None and settings.judge_band_low <= clf.score < settings.judge_band_high:
+                        band[f"{kind_} (judge off)"] += 1
                 for d in res.detections:
                     entities[d.entity.value] += 1
                 kind = "attack" if attack else "benign"
@@ -159,6 +184,8 @@ def main(argv: list[str] | None = None) -> int:
             "per_category": {k: rates(v) for k, v in sorted(per_cat.items())},
             "entities_detected": dict(entities.most_common()),
             "sample_missed_attacks": misses, "sample_false_positives": fps,
+            "decided_by": dict(sorted(decided.items())), "in_judge_band": dict(band),
+            "latency_ms": {"p50": _pct(latencies, 50), "p95": _pct(latencies, 95), "p99": _pct(latencies, 99)},
         }
 
     for name, r in report["datasets"].items():
@@ -171,6 +198,7 @@ def main(argv: list[str] | None = None) -> int:
             m = o[how]
             print(f"   {label:16} detection rate {m['detection_rate']:.1%}  false-positive rate "
                   f"{(m['false_positive_rate'] or 0):.1%}  precision {(m['precision'] or 0):.1%}  (TP {m['tp']} FN {m['fn']} FP {m['fp']} TN {m['tn']})")
+        print(f"   decided by: {r['decided_by']}   in judge band: {r['in_judge_band']}   latency ms: {r['latency_ms']}")
         for cat, m in r["per_category"].items():
             n = m["attacks"] or m["benign"]
             flagged = m["threat"]["tp"] + m["threat"]["fp"]

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asTenant, createMigratedDb, seedTwoOrgs } from "../helpers/testDb.js";
 
 const TENANT_TABLES = ["users", "teams", "team_members", "projects", "api_keys", "providers", "models", "policies",
-  "policy_rules", "security_events", "scan_results", "audit_logs", "files", "file_scans", "usage", "evaluation_runs"];
+  "policy_rules", "security_events", "scan_results", "audit_logs", "files", "file_scans", "usage", "evaluation_runs", "red_team_rounds"];
 const SEEDED = ["users", "teams", "projects", "api_keys", "providers", "policies", "policy_rules", "security_events",
   "audit_logs", "usage"];
 

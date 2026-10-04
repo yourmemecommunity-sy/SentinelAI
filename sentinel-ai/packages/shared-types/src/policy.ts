@@ -21,4 +21,6 @@ export interface Policy {
   organization_id?: string;
   version?: number;
   rules: PolicyRule[];
+  /** Organization switch: false -> the external LLM judge is never called (set by the gateway, not by policy authors). */
+  external_judge?: boolean;
 }

@@ -6,6 +6,7 @@ import { PgTenantDb } from "./db/tenantDb.js";
 import { PgAuditLogWriter } from "./events/auditLog.js";
 import { PgEventSink } from "./events/eventSink.js";
 import { PgPolicyRepository } from "./repositories/policyRepository.js";
+import { PgRedTeamRepository } from "./repositories/redTeamRepository.js";
 import { PgApiKeyRepository } from "./repositories/apiKeyRepository.js";
 import { PgFileRepository } from "./repositories/fileRepository.js";
 import { HttpDocumentScanner } from "./security/documentScanner.js";
@@ -37,7 +38,8 @@ async function main(): Promise<void> {
     console.warn(`WARNING: ${msg}`);
   }
   const scanner = new HttpSecurityClient({ baseUrl: config.securityEngineUrl, token: config.securityEngineToken,
-    timeoutMs: config.securityTimeoutMs, timeoutPerKcharMs: config.securityTimeoutPerKcharMs });
+    timeoutMs: config.securityTimeoutMs, timeoutPerKcharMs: config.securityTimeoutPerKcharMs,
+    classifierMsPerWindow: config.securityTimeoutPerWindowMs, judgeAllowanceMs: config.securityTimeoutJudgeMs });
   const router = new AiRouter();
   registerConfiguredProviders(router, config);
   if (router.ids().length === 0) console.warn("no AI providers configured: all /v1/ai/* requests will be blocked as unknown_provider");
@@ -63,7 +65,7 @@ async function main(): Promise<void> {
     ...(documents ? { documents, fileScan: new FileScanService({ documents, scanner, policies, events, files: new PgFileRepository(db) }) } : {}),
     auth: new CompositeAuthenticator(new DbApiKeyAuthenticator(db, config.apiKeyPepper), tokens, directory),
     directory, providerSettings: { repo: providerRepo, routers, cipher, platformProviders: router.ids() },
-    auditLog, apiKeys: new PgApiKeyRepository(db, config.apiKeyPepper),
+    auditLog, apiKeys: new PgApiKeyRepository(db, config.apiKeyPepper), redTeam: new PgRedTeamRepository(db),
     ...(authService ? { authService, signupEnabled: config.signupEnabled } : {}),
     service, ...(vault ? { vault } : {}), streaming: new SecureStreamService({ service, vault, limits: config.stream }),
     ping: () => db.ping(),

@@ -8,6 +8,8 @@ export interface SecurityEvent {
   risk_level: RiskLevel; risk_score: number; action: Action; entity_types: EntityType[];
   policy_id: string; failed_closed: boolean; fail_closed_reason: string | null;
   detector_version: string; latency_ms: number; timestamp: string;
+  /** Why the decision was made (no content). Null for events recorded before 2026-10. */
+  explanation?: Explanation | null;
 }
 export interface EventsPage { events: SecurityEvent[]; next_before: string | null }
 
@@ -48,4 +50,32 @@ export interface TeamInfo { id: string; name: string; members: string[] }
 export interface ProviderSetting {
   provider: string; enabled: boolean; source: "organization" | "platform" | "disabled" | "none";
   organization_credential: { hint: string | null; key_id: string; updated_at: string } | null; accepts_organization_credential: boolean;
+}
+
+/** Mirrors the engine's explanation (services/security-engine/app/models/explanation.py). Holds no content. */
+export interface Explanation {
+  decided_by: "rules" | "classifier" | "judge" | "fail_closed";
+  tier: number;
+  detectors_fired: { detector: string; entity: EntityType; count: number; max_confidence: number; tier: number }[];
+  classifier?: { model: string; score: number; threshold: number; band_low: number | null; band_high: number | null; band: "attack" | "uncertain" | "benign";
+    windows_scored?: number; windows_total?: number } | null;
+  judge?: { called: boolean; cached: boolean; skipped_reason: string | null; verdict: "attack" | "benign" | null; category: string | null;
+    confidence: number | null; reason?: string | null; model: string | null; prompt_version: string | null; latency_ms: number | null } | null;
+  policy: { policy_id: string; policy_version: number; deciding_entity: EntityType | null; deciding_action: Action;
+    source: "policy_rule" | "baseline" | "risk_escalation" | "no_detection" | "fail_closed" };
+  versions: Record<string, string>;
+  content_hmac: string;
+}
+
+export interface ReplayResponse {
+  event_id: string; content_matches: boolean; identical: boolean; recorded_decision: Action; replayed_decision: Action | null;
+  recorded_decided_by: string; replayed_decided_by: string | null; differences: string[];
+  versions: { name: string; recorded: string | null; current: string | null; same: boolean }[]; versions_identical: boolean; judge_source: string;
+}
+
+export interface RedTeamRound {
+  round: number; dataset_version: string; generator_model: string; engine_version: string; attacks: number; blocked: number; slipped: number;
+  per_category: Record<string, { attacks: number; blocked: number; slipped: number; by_tier?: Record<string, number> }>;
+  examples: { category: string; outcome: "blocked" | "slipped"; decided_by: string; text: string }[];
+  cost_usd: number; ran_at?: string;
 }

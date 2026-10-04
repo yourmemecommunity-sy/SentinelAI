@@ -29,3 +29,6 @@ Thumbs.db
 .terraform/
 *.tfvars
 *.tsbuildinfo
+
+# tier-2 classifier files fetched locally (services/security-engine/fetch_classifier.sh); ~750 MB, never committed
+services/security-engine/models/

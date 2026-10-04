@@ -24,10 +24,13 @@ VAULT_TOKEN=$(hex 24)
 REDIS_PASSWORD=$(hex 24)
 VAULT_MASTER_KEYS=k1:$(openssl rand -base64 32)
 PROVIDER_CREDENTIAL_KEYS=p1:$(openssl rand -base64 32)
+SENTINEL_DIGEST_KEY=$(hex 32)
 # Optional providers (leave empty to disable):
 GEMINI_API_KEY=
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
+# Spending cap (USD) for the engine's AI judge and the red-team generator:
+ANTHROPIC_BUDGET_USD=5
 OLLAMA_BASE_URL=
 OLLAMA_MODEL=
 EOF

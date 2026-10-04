@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.explanation import Explanation
 from app.models.types import Action, Detection, Direction, EntityType, RequestContext, Risk
 from app.policies.policy import Policy
 
@@ -37,3 +38,4 @@ class ScanResult(BaseModel):
     policy_id: str
     detector_version: str
     latency_ms: float
+    explanation: Explanation | None = None  # why this decision was made (no content; see app.models.explanation)

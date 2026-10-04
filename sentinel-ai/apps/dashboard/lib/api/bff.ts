@@ -90,6 +90,11 @@ const ALLOWED: { method: string; re: RegExp }[] = [
   { method: "PUT", re: new RegExp(`^policies/${ID}$`) },
   { method: "DELETE", re: new RegExp(`^policies/${ID}$`) },
   { method: "POST", re: /^security\/scan$/ },
+  // explanations, replay (the gateway checks the text against the recorded content hash), red team, judge switch
+  { method: "POST", re: /^events\/[0-9a-fA-F-]{36}\/replay$/ },
+  { method: "GET", re: /^red-team\/rounds$/ },
+  { method: "GET", re: /^organization\/ai-judge$/ },
+  { method: "PUT", re: /^organization\/ai-judge$/ },
   { method: "GET", re: /^api-keys$/ },
   { method: "POST", re: /^api-keys$/ },
   { method: "DELETE", re: /^api-keys\/[0-9a-fA-F-]{36}$/ },

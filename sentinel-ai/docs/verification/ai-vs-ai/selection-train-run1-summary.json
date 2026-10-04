@@ -1,0 +1,262 @@
+{
+ "candidates": [
+  {
+   "model": "protectai/deberta-v3-base-prompt-injection-v2",
+   "variant": "fp32",
+   "revision": "90c9989b1a342275dd0d1a95aad283c04e075671",
+   "licence": "apache-2.0",
+   "trained_on": [
+    "jackhhao/jailbreak-classification"
+   ],
+   "file_mib": 704.3,
+   "rss_after_load_mib": 1216.4,
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": false,
+     "auc": 0.8815,
+     "at_0.5": {
+      "detection_rate": 0.4286,
+      "false_positive_rate": 0.0117,
+      "tp": 87,
+      "fp": 4,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": true,
+     "auc": 0.9842,
+     "at_0.5": {
+      "detection_rate": 0.833,
+      "false_positive_rate": 0.0039,
+      "tp": 439,
+      "fp": 2,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   },
+   "latency_ms_1thread": {
+    "p50": 150.7,
+    "p95": 3762.8,
+    "n": 300
+   },
+   "peak_rss_mib": 2272.4
+  },
+  {
+   "model": "protectai/deberta-v3-base-prompt-injection-v2",
+   "variant": "int8",
+   "revision": "90c9989b1a342275dd0d1a95aad283c04e075671",
+   "licence": "apache-2.0",
+   "trained_on": [
+    "jackhhao/jailbreak-classification"
+   ],
+   "file_mib": 232.6,
+   "rss_after_load_mib": 0.2,
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": false,
+     "auc": 0.7836,
+     "at_0.5": {
+      "detection_rate": 0.1429,
+      "false_positive_rate": 0.0,
+      "tp": 29,
+      "fp": 0,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": true,
+     "auc": 0.8922,
+     "at_0.5": {
+      "detection_rate": 0.704,
+      "false_positive_rate": 0.1354,
+      "tp": 371,
+      "fp": 70,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   },
+   "latency_ms_1thread": {
+    "p50": 93.7,
+    "p95": 1902.6,
+    "n": 300
+   },
+   "peak_rss_mib": 1238.5
+  },
+  {
+   "model": "fmops/distilbert-prompt-injection",
+   "variant": "fp32",
+   "revision": "c5da1fefd33c98c447b50dd806fe86aeb9e8c26c",
+   "licence": "apache-2.0",
+   "trained_on": [
+    "deepset/prompt-injections"
+   ],
+   "file_mib": 255.5,
+   "rss_after_load_mib": 0.0,
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": true,
+     "auc": 1.0,
+     "at_0.5": {
+      "detection_rate": 1.0,
+      "false_positive_rate": 0.0,
+      "tp": 203,
+      "fp": 0,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": false,
+     "auc": 0.9337,
+     "at_0.5": {
+      "detection_rate": 0.9962,
+      "false_positive_rate": 0.9768,
+      "tp": 525,
+      "fp": 505,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   },
+   "latency_ms_1thread": {
+    "p50": 52.8,
+    "p95": 1268.7,
+    "n": 300
+   },
+   "peak_rss_mib": 1734.5
+  },
+  {
+   "model": "fmops/distilbert-prompt-injection",
+   "variant": "int8",
+   "revision": "c5da1fefd33c98c447b50dd806fe86aeb9e8c26c",
+   "licence": "apache-2.0",
+   "trained_on": [
+    "deepset/prompt-injections"
+   ],
+   "file_mib": 64.2,
+   "rss_after_load_mib": 0.1,
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": true,
+     "auc": 1.0,
+     "at_0.5": {
+      "detection_rate": 1.0,
+      "false_positive_rate": 0.0,
+      "tp": 203,
+      "fp": 0,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": false,
+     "auc": 0.934,
+     "at_0.5": {
+      "detection_rate": 0.9962,
+      "false_positive_rate": 0.9826,
+      "tp": 525,
+      "fp": 508,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   },
+   "latency_ms_1thread": {
+    "p50": 22.8,
+    "p95": 576.4,
+    "n": 300
+   },
+   "peak_rss_mib": 1735.0
+  },
+  {
+   "model": "deepset/deberta-v3-base-injection",
+   "variant": "fp32",
+   "revision": "80dda00d0b0d9a03917a7685e2ddbcd28e04dbb1",
+   "licence": "mit",
+   "trained_on": [
+    "deepset/prompt-injections"
+   ],
+   "file_mib": 704.4,
+   "rss_after_load_mib": 493.9,
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": true,
+     "auc": 1.0,
+     "at_0.5": {
+      "detection_rate": 1.0,
+      "false_positive_rate": 0.0029,
+      "tp": 203,
+      "fp": 1,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": false,
+     "auc": 0.8456,
+     "at_0.5": {
+      "detection_rate": 0.9962,
+      "false_positive_rate": 0.9516,
+      "tp": 525,
+      "fp": 492,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   },
+   "latency_ms_1thread": {
+    "p50": 169.9,
+    "p95": 3078.1,
+    "n": 300
+   },
+   "peak_rss_mib": 2575.9
+  },
+  {
+   "model": "deepset/deberta-v3-base-injection",
+   "variant": "int8",
+   "revision": "80dda00d0b0d9a03917a7685e2ddbcd28e04dbb1",
+   "licence": "mit",
+   "trained_on": [
+    "deepset/prompt-injections"
+   ],
+   "file_mib": 232.7,
+   "rss_after_load_mib": 0.5,
+   "splits": {
+    "deepset/prompt-injections": {
+     "contaminated": true,
+     "auc": 0.8341,
+     "at_0.5": {
+      "detection_rate": 0.9261,
+      "false_positive_rate": 0.4869,
+      "tp": 188,
+      "fp": 167,
+      "positives": 203,
+      "negatives": 343
+     }
+    },
+    "jackhhao/jailbreak-classification": {
+     "contaminated": false,
+     "auc": 0.5923,
+     "at_0.5": {
+      "detection_rate": 0.9943,
+      "false_positive_rate": 0.9865,
+      "tp": 524,
+      "fp": 510,
+      "positives": 527,
+      "negatives": 517
+     }
+    }
+   },
+   "latency_ms_1thread": {
+    "p50": 69.2,
+    "p95": 1607.7,
+    "n": 300
+   },
+   "peak_rss_mib": 1596.9
+  }
+ ]
+}

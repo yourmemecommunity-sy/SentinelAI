@@ -213,9 +213,12 @@ describe("event wire format", () => {
     await app.inject({ method: "POST", url: "/v1/security/scan", headers: H("snl_dev"), payload: { text: "mail a@b.co" } });
     const res = await app.inject({ method: "GET", url: "/v1/events", headers: H("snl_view") });
     const ev = res.json().events[0];
-    expect(Object.keys(ev).sort()).toEqual(["action", "api_key_id", "application", "detector_version", "direction", "entity_types", "event_type", "fail_closed_reason",
-      "failed_closed", "id", "latency_ms", "model", "policy_id", "provider", "request_id", "risk_level", "risk_score", "timestamp", "user_id"]);
+    expect(Object.keys(ev).sort()).toEqual(["action", "api_key_id", "application", "detector_version", "direction", "entity_types", "event_type",
+      "explanation", "fail_closed_reason", "failed_closed", "id", "latency_ms", "model", "policy_id", "provider", "request_id", "risk_level",
+      "risk_score", "timestamp", "user_id"]);
     expect(JSON.stringify(ev)).not.toContain("a@b.co");
+    // A stored explanation never carries the judge's free-text reason (model prose about the text).
+    expect(ev.explanation?.judge?.reason ?? null).toBeNull();
     expect((await app.inject({ method: "GET", url: `/v1/events/${ev.id}`, headers: H("snl_view") })).json()).toEqual(ev);
   });
 });

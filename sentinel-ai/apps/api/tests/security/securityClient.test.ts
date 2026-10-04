@@ -4,7 +4,9 @@ import { HttpSecurityClient, failClosedResult } from "../../src/security/securit
 import { makeScan } from "../helpers/fakes.js";
 
 const REQ = { text: "hello", organization_id: "org", direction: "INPUT" as const };
-const client = (f: typeof fetch, timeoutMs = 200) => new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs, fetch: f, token: "internal-token" });
+// Classifier and judge allowances off unless a test is about them (they add seconds to every timeout).
+const NO_TIER23 = { classifierMsPerWindow: 0, judgeAllowanceMs: 0 } as const;
+const client = (f: typeof fetch, timeoutMs = 200) => new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs, fetch: f, token: "internal-token", ...NO_TIER23 });
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const expectFailClosed = (r: ScanResult, reason: string | RegExp) => {
   expect(r.decision).toBe("BLOCK");
@@ -42,11 +44,18 @@ describe("HttpSecurityClient fails closed", () => {
       init.signal!.addEventListener("abort", () => { clearTimeout(t); rej(new DOMException("t", "TimeoutError")); });
     })) as unknown as typeof fetch;
     const long = { ...REQ, text: "x".repeat(10_000) };
-    const noAllowance = new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs: 50, timeoutPerKcharMs: 0, fetch: slow });
+    const noAllowance = new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs: 50, timeoutPerKcharMs: 0, fetch: slow, ...NO_TIER23 });
     expectFailClosed(await noAllowance.scan(long), "engine_timeout");
-    const withAllowance = new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs: 50, timeoutPerKcharMs: 60, fetch: slow });
+    const withAllowance = new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs: 50, timeoutPerKcharMs: 60, fetch: slow, ...NO_TIER23 });
     expect((await withAllowance.scan(long)).decision).toBe("ALLOW");            // 50 + 60 x 10 = 650 ms > 200 ms
     expectFailClosed(await withAllowance.scan({ ...REQ, text: "short" }), "engine_timeout"); // 50 + 60 x 1 = 110 ms < 200 ms
+  });
+
+  it("allows for the engine's classifier (per window, capped at 4) and its AI judge", () => {
+    const c = new HttpSecurityClient({ baseUrl: "http://engine.test", timeoutMs: 2000, timeoutPerKcharMs: 60, fetch: fetch });
+    expect(c.timeoutFor(100)).toBe(2000 + 60 + 1800 + 4500);                 // 1 window
+    expect(c.timeoutFor(3000)).toBe(2000 + 180 + 1800 * 2 + 4500);           // 2 windows
+    expect(c.timeoutFor(100_000)).toBe(2000 + 6000 + 1800 * 4 + 4500);       // capped: the engine scores at most 4 windows
   });
 
   it.each([401, 422, 500, 503])("HTTP %i -> engine_http_%i", async (status) => {

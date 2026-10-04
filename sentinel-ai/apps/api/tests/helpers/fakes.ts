@@ -10,7 +10,7 @@ import type { SecurityScanner } from "../../src/security/securityClient.js";
 
 export const TEST_CONFIG: AppConfig = {
   nodeEnv: "test", port: 0, corsOrigins: ["https://dash.example.test"], apiKeyPepper: "p".repeat(40),
-  securityEngineUrl: "http://engine.test", securityEngineToken: undefined, securityTimeoutMs: 500, securityTimeoutPerKcharMs: 60,
+  securityEngineUrl: "http://engine.test", securityEngineToken: undefined, securityTimeoutMs: 500, securityTimeoutPerKcharMs: 60, securityTimeoutPerWindowMs: 1800, securityTimeoutJudgeMs: 4500,
   databaseUrl: undefined, geminiApiKey: undefined, openaiApiKey: undefined, anthropicApiKey: undefined, ollama: undefined, maxInputChars: 5_000, documentScanner: undefined, maxFileBytes: 200_000, vault: undefined, stream: { holdBackChars: 256, minSegmentChars: 64, idleTimeoutMs: 30_000, maxDurationMs: 300_000, maxOutputChars: 200_000, maxConcurrent: 10 }, rateLimitPerMinute: 1000,
   jwtAccessSecret: "j".repeat(40), accessTtlSeconds: 900, refreshTtlSeconds: 86_400, signupEnabled: true, providerCredentialKeys: undefined,
 };
@@ -102,6 +102,14 @@ export class MemoryPolicies implements PolicyRepository {
   async get() { return null; }
   async createVersion() { return 1; }
   async deactivate() { return false; }
+  /** Recorded policy for replay: the current `policy` if its id matches, undefined for the baseline, else null. */
+  async getRecorded(_org: string, id: string): Promise<Policy | undefined | null> {
+    if (id === "sentinelai-baseline") return undefined;
+    return this.policy?.policy_id === id ? this.policy : null;
+  }
+  externalJudge = true;
+  async getExternalJudge() { return this.externalJudge; }
+  async setExternalJudge(_org: string, enabled: boolean) { this.externalJudge = enabled; }
 }
 
 export const ORG_A = "11111111-1111-4111-8111-111111111111";

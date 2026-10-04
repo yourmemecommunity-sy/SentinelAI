@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-DETECTOR_BUNDLE_VERSION = "2026.09.1-ner"
+DETECTOR_BUNDLE_VERSION = "2026.10.1-cascade"
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,24 @@ class Settings:
     vault_url: str | None = None          # token-vault base URL; without it a session-scoped TOKENIZE degrades to REDACT
     vault_token: str | None = None
     vault_timeout_s: float = 0.5
+    # Detection cascade (tier 2 classifier, tier 3 judge). Off in the dataclass default so unit tests never need the
+    # model files; on by default from the environment (Settings.from_env). Thresholds: chosen on TRAINING splits only,
+    # see docs/verification/12-ai-vs-ai.md.
+    cascade_enabled: bool = False
+    classifier_dir: str = "/srv/models/injection-classifier"
+    # protectai/deberta-v3-base-prompt-injection-v2, chosen on TRAIN splits (scripts/security/choose_thresholds.py):
+    # threshold = train FP <= 2%; band = train FP <= 0.5% above it, <= 20% of train inputs inside it.
+    classifier_threshold: float = 0.0064
+    judge_band_low: float = 0.00001
+    judge_band_high: float = 0.97694
+    # Classifier cost bound (measured on jackhhao TRAIN prompts, 2 threads: ~1.5 s per 512-token window at p95).
+    classifier_threads: int = 2
+    classifier_max_windows: int = 4
+    classifier_budget_per_window_ms: int = 1600
+    anthropic_api_key: str | None = None
+    judge_enabled: bool = True             # only effective with an API key
+    judge_model: str = "claude-haiku-4-5"
+    judge_timeout_s: float = 4.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -36,6 +54,21 @@ class Settings:
             vault_url=os.environ.get("VAULT_URL") or None,
             vault_token=os.environ.get("VAULT_TOKEN") or None,
             vault_timeout_s=float(os.environ.get("VAULT_TIMEOUT_S", "0.5")),
+            # Default: on in production (where it is mandatory, like NER), off in development unless SENTINEL_CASCADE=on.
+            cascade_enabled=os.environ.get(
+                "SENTINEL_CASCADE", "on" if os.environ.get("SENTINEL_ENV", "development") == "production" else "off",
+            ).strip().lower() not in ("off", "false", "0", "no"),
+            classifier_dir=os.environ.get("SENTINEL_CLASSIFIER_DIR", "/srv/models/injection-classifier"),
+            classifier_threshold=float(os.environ.get("SENTINEL_CLASSIFIER_THRESHOLD", str(cls.classifier_threshold))),
+            judge_band_low=float(os.environ.get("SENTINEL_JUDGE_BAND_LOW", str(cls.judge_band_low))),
+            judge_band_high=float(os.environ.get("SENTINEL_JUDGE_BAND_HIGH", str(cls.judge_band_high))),
+            classifier_threads=int(os.environ.get("SENTINEL_CLASSIFIER_THREADS", "2")),
+            classifier_max_windows=int(os.environ.get("SENTINEL_CLASSIFIER_MAX_WINDOWS", "4")),
+            classifier_budget_per_window_ms=int(os.environ.get("SENTINEL_CLASSIFIER_MS_PER_WINDOW", "1600")),
+            anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY") or None,
+            judge_enabled=os.environ.get("SENTINEL_JUDGE", "on").strip().lower() not in ("off", "false", "0", "no"),
+            judge_model=os.environ.get("SENTINEL_JUDGE_MODEL", "claude-haiku-4-5"),
+            judge_timeout_s=float(os.environ.get("SENTINEL_JUDGE_TIMEOUT_S", "4")),
         )
         # Fail closed on misconfiguration: never run an unauthenticated engine in production.
         if s.environment == "production" and not s.internal_token:
@@ -43,6 +76,12 @@ class Settings:
         # Names and locations are only detected by the NER layer: production must not silently run without it.
         if s.environment == "production" and not s.ner_enabled:
             raise RuntimeError("SENTINEL_NER=off is not allowed when SENTINEL_ENV=production")
+        # Prompt-injection detection relies on the cascade's classifier: production must not silently run without it.
+        if s.environment == "production" and not s.cascade_enabled:
+            raise RuntimeError("SENTINEL_CASCADE=off is not allowed when SENTINEL_ENV=production")
+        # Content HMACs (replay) and value digests must be stable across workers and restarts in production.
+        if s.environment == "production" and not os.environ.get("SENTINEL_DIGEST_KEY"):
+            raise RuntimeError("SENTINEL_DIGEST_KEY must be set when SENTINEL_ENV=production")
         if s.environment == "production" and s.vault_url and not s.vault_token:
             raise RuntimeError("VAULT_TOKEN must be set when VAULT_URL is set in production")
         return s

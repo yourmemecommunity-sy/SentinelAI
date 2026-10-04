@@ -223,6 +223,7 @@ def test_production_settings_require_a_vault_token_when_a_vault_is_configured(mo
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("SENTINEL_ENV", "production")
     monkeypatch.setenv("SECURITY_ENGINE_TOKEN", "e" * 20)
+    monkeypatch.setenv("SENTINEL_DIGEST_KEY", "d" * 32)  # production also requires a stable digest key (since 2026.10)
     monkeypatch.setenv("VAULT_URL", "http://vault:8004")
     with pytest.raises(RuntimeError):
         Settings.from_env()

@@ -4,3 +4,8 @@ pydantic>=2.6
 # NER layer (names, locations): spaCy + a pinned English model, run locally. See app/detectors/ner.
 spacy>=3.8,<3.9
 en_core_web_md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl
+# Tier 2 (local prompt-injection classifier) and tier 3 (AI judge, optional). See app/cascade.
+onnxruntime>=1.20,<2
+tokenizers>=0.20,<1
+numpy>=1.26
+anthropic>=0.69,<1

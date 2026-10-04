@@ -35,6 +35,14 @@ paths:
         "200": { description: scan result, content: { application/json: { schema: { $ref: "#/components/schemas/ScanResult" } } } }
         "401": { description: invalid internal token }
         "422": { description: invalid request or policy (callers must treat as BLOCK) }
+  /v1/replay:
+    post:
+      summary: |
+        [internal, security-engine] Re-run a recorded decision with the ORIGINAL text and the event's stored explanation.
+        Refuses text whose keyed hash differs from the recorded content_hmac; reuses the recorded judge verdict unless
+        live_judge is true; read-only (no vault, no event). See services/security-engine/app/replay.py.
+      security: [{ internalToken: [] }]
+      responses: { "200": { description: "replay result (identical, differences, version diff)" }, "401": { description: invalid internal token } }
   /v1/security/scan:
     post:
       summary: Scan text under the organization policy (gateway; implemented)
@@ -163,7 +171,34 @@ paths:
   /v1/events:
     get: { summary: "List security events (filter by risk_level/action/event_type: scan, ai_request, ai_response, fail_closed, file_scan; cursor pagination) (implemented)", responses: { "200": { description: ok } } }
   /v1/events/{id}:
-    get: { summary: Event detail (no raw content) (implemented), parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { "200": { description: ok } } }
+    get: { summary: "Event detail (no raw content), including its explanation (implemented)", parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { "200": { description: ok } } }
+  /v1/events/{id}/replay:
+    post:
+      summary: |
+        Replay a recorded decision (implemented; events:read, live_judge needs evaluation:run). The caller supplies the
+        original text (events never store it); the engine checks it against the recorded content hash and re-runs the
+        decision with the recorded policy versions and judge verdict. The replay is audit-logged; nothing is stored.
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { content: { application/json: { schema: { type: object, additionalProperties: false, required: [text], properties: { text: { type: string }, live_judge: { type: boolean } } } } } }
+      responses:
+        "200": { description: "content_matches, identical, recorded/replayed decision, differences, version diff" }
+        "403": { description: live_judge without evaluation:run }
+        "404": { description: not found }
+        "409": { description: "event_has_no_explanation | policy_version_missing" }
+        "502": { description: replay_failed }
+  /v1/organization/ai-judge:
+    get: { summary: "Organization switch for the external AI judge (implemented; policies:read)", responses: { "200": { description: "{ external_judge }" } } }
+    put:
+      summary: "Turn the external AI judge on or off for the organization (implemented; policies:write; audit-logged)"
+      requestBody: { content: { application/json: { schema: { type: object, additionalProperties: false, required: [external_judge], properties: { external_judge: { type: boolean } } } } } }
+      responses: { "200": { description: "{ external_judge }" } }
+  /v1/red-team/rounds:
+    get: { summary: "Red-team rounds, newest first (implemented; events:read)", parameters: [{ name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }], responses: { "200": { description: "{ rounds }" } } }
+    post:
+      summary: |
+        Record one red-team round (implemented; evaluation:run). Counts per category and tier plus at most 40 synthetic,
+        sanitized, truncated examples; append-only (409 if the round number exists). Written by scripts/security/red_team.py.
+      responses: { "201": { description: recorded }, "409": { description: round_exists }, "422": { description: invalid (blocked + slipped must equal attacks) } }
   /v1/policies:
     get: { summary: List policies (implemented), responses: { "200": { description: ok } } }
     post: { summary: Create policy version 1 (validated; unsafe ALLOW rules rejected) (implemented), requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/Policy" } } } }, responses: { "201": { description: created }, "422": { description: invalid } } }
@@ -379,6 +414,22 @@ components:
         policy_id: { type: string }
         detector_version: { type: string }
         latency_ms: { type: number }
+        explanation: { oneOf: [{ $ref: "#/components/schemas/Explanation" }, { type: "null" }] }
+    Explanation:
+      type: object
+      description: |
+        Why a decision was made. No content: detector names, scores, versions and a keyed HMAC of the scanned text. The
+        judge's free-text `reason` is returned by scans but never stored (gateway strips it; a DB CHECK rejects it).
+      required: [decided_by, tier, detectors_fired, policy, versions, content_hmac]
+      properties:
+        decided_by: { enum: [rules, classifier, judge, fail_closed] }
+        tier: { type: integer, minimum: 1, maximum: 3 }
+        detectors_fired: { type: array, items: { type: object, properties: { detector: { type: string }, entity: { type: string }, count: { type: integer }, max_confidence: { type: number }, tier: { type: integer } } } }
+        classifier: { type: [object, "null"], properties: { model: { type: string }, score: { type: number }, threshold: { type: number }, band_low: { type: [number, "null"] }, band_high: { type: [number, "null"] }, band: { enum: [attack, uncertain, benign] }, windows_scored: { type: integer }, windows_total: { type: integer } } }
+        judge: { type: [object, "null"], properties: { called: { type: boolean }, cached: { type: boolean }, skipped_reason: { type: [string, "null"] }, verdict: { enum: [attack, benign, null] }, category: { type: [string, "null"] }, confidence: { type: [number, "null"] }, reason: { type: [string, "null"] }, model: { type: [string, "null"] }, prompt_version: { type: [string, "null"] }, latency_ms: { type: [number, "null"] } } }
+        policy: { type: object, properties: { policy_id: { type: string }, policy_version: { type: integer }, deciding_entity: { type: [string, "null"] }, deciding_action: { type: string }, source: { enum: [policy_rule, baseline, risk_escalation, no_detection, fail_closed] } } }
+        versions: { type: object, additionalProperties: { type: string } }
+        content_hmac: { type: string, pattern: "^[0-9a-f]{64}$" }
     SignupRequest:
       type: object
       additionalProperties: false

@@ -289,9 +289,11 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     logging.disable(logging.INFO)  # the engine logs one INFO line per scan
+    from app.config.settings import Settings
     from app.pipelines import default_pipeline
 
-    pipeline = default_pipeline()
+    # SENTINEL_CASCADE=on measures the cascade (its classifier can only ADD blocks to these benign-for-injection records)
+    pipeline = default_pipeline(Settings.from_env())
     rep: dict[str, Any] = {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "tuned_on_these_datasets": False}
     if args.suite in ("pii", "all"):
         rep["pii"] = eval_pii(pipeline, args.limit, args.split, args.sample)
