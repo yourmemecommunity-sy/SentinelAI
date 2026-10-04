@@ -204,7 +204,7 @@ records, so its cost shows as extra BLOCK decisions.
 PII masking itself is unchanged (tiers 2–3 never remove a detection). Current cost: 2.3 % / 0.7 % of benign PII-bearing
 records are falsely blocked as injection.
 
-### 4.3 Secrets (Samsung CredData, 67.6k labelled lines) — see §4.6 (run in progress when this was written).
+### 4.3 Secrets (Samsung CredData, 67.6k labelled lines) — see §4.6.
 
 ### 4.4 Latency and throughput (k6, instant mock provider, the Docker stack; `scripts/development/perf-cascade.sh 15`)
 
@@ -234,7 +234,16 @@ requests. **Actual spend in this run: USD 0.00.**
 
 ### 4.6 Secrets — CredData
 
-_Filled in when the run finishes (§ below)._
+Full set (Samsung/CredData commit c09c0c52, 67,564 labelled lines, 3 unreadable skipped), `scripts/security/run-creddata-cascade.sh`:
+
+| Configuration | Detection (15,714 true lines) | False-positive rate (51,847 false lines) | Evidence |
+|---|---|---|---|
+| Tier 1 (rules + NER), D43 engine | **44.8 %** | **14.2 %** | [creddata-tier1.json](ai-vs-ai/creddata-tier1.json) |
+| Tier 1 + tier 2 (cascade, judge off) | **not finished** when this report was committed (still running after ~70 min) | — | `/root/eval-out-v2/creddata-cascade.json` once done |
+
+Tiers 2–3 only run on inputs tier 1 did not already block, and only add PROMPT_INJECTION blocks, so they cannot lower the
+secret detection rate; the open question the cascade run answers is how many *extra* false blocks the classifier adds on
+code/config lines.
 
 ---
 
@@ -258,7 +267,7 @@ methodology, replay; three interview Q&As each).
 | Repository security tests | 20 passed (OpenAPI contract incl. the 5 new routes) + red-team harness 10 + egress proxy 2 |
 | Docker | all images built; `docker-verify.sh`: 77 passed, 1 skipped (optional Ollama profile); stack READY |
 | Structure validator / gitleaks | passed / no leaks (run on a clean export of the committed tree) |
-| CI under `act` | see §7 |
+| CI under `act` (fresh clone, all jobs except `containers`) | at 619b443: structure, security-engine, document-scanner, python-typecheck, token-vault, gateway, dependency-scanning, secret-scanning **all succeeded**; actionlint clean. The first run (c039db1) found a **real CI failure**: mypy saw `tests/cascade/conftest.py` under two module names, and once fixed (6f997ca) found 42 type errors in the new cascade tests (Optional attribute chains), fixed in 619b443 with typed accessors, no checks relaxed. The engine job's artifact upload needs `--artifact-server-path` under act. gitleaks under act scans only the 8 commits act's checkout sees; the full-history scan on the export is the one above. |
 
 ## 7. Blockers and what the owner must do
 
@@ -267,3 +276,5 @@ methodology, replay; three interview Q&As each).
    every judge and Claude-generator number is "blocked: no key".
 2. The classifier adds ~1.2 GiB per engine worker; size the engine's memory with the worker count.
 3. Push is left to the owner (nothing was pushed).
+4. CredData cascade pass: when `/root/eval-out-v2/creddata.done` exists, copy `creddata-cascade.json` into
+   `docs/verification/ai-vs-ai/` and fill in the second row of §4.6.

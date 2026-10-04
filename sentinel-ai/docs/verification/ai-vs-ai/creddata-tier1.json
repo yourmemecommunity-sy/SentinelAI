@@ -1,0 +1,404 @@
+{
+  "generated_at": "2026-10-04T14:34:19Z",
+  "tuned_on_these_datasets": false,
+  "secrets": {
+    "Samsung/CredData": {
+      "commit": "c09c0c52fc6dae4ae5438ae69ba486f9f8059f0d",
+      "meta_rows": 67564,
+      "unreadable_rows_skipped": 3,
+      "seconds": 1171.4,
+      "overall": {
+        "true_lines": 15714,
+        "detection_rate": 0.4483,
+        "false_lines": 51847,
+        "false_positive_rate": 0.1423
+      },
+      "per_category": {
+        "Key": {
+          "true_lines": 4301,
+          "detection_rate": 0.4204,
+          "false_lines": 20817,
+          "false_positive_rate": 0.0597
+        },
+        "Password": {
+          "true_lines": 2743,
+          "detection_rate": 0.5746,
+          "false_lines": 11373,
+          "false_positive_rate": 0.2779
+        },
+        "UUID": {
+          "true_lines": 2539,
+          "detection_rate": 0.061,
+          "false_lines": 3716,
+          "false_positive_rate": 0.5904
+        },
+        "Secret": {
+          "true_lines": 1571,
+          "detection_rate": 0.2623,
+          "false_lines": 2492,
+          "false_positive_rate": 0.0819
+        },
+        "Auth": {
+          "true_lines": 1278,
+          "detection_rate": 0.687,
+          "false_lines": 3616,
+          "false_positive_rate": 0.0481
+        },
+        "Token": {
+          "true_lines": 1205,
+          "detection_rate": 0.4622,
+          "false_lines": 5287,
+          "false_positive_rate": 0.0197
+        },
+        "PEM Private Key": {
+          "true_lines": 1193,
+          "detection_rate": 1.0,
+          "false_lines": 72,
+          "false_positive_rate": 0.8472
+        },
+        "Basic Authorization": {
+          "true_lines": 692,
+          "detection_rate": 0.8714,
+          "false_lines": 555,
+          "false_positive_rate": 0.0036
+        },
+        "Bearer Authorization": {
+          "true_lines": 289,
+          "detection_rate": 0.782,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "API": {
+          "true_lines": 253,
+          "detection_rate": 0.6008,
+          "false_lines": 4010,
+          "false_positive_rate": 0.0172
+        },
+        "URL Credentials": {
+          "true_lines": 227,
+          "detection_rate": 0.2775,
+          "false_lines": 417,
+          "false_positive_rate": 0.3189
+        },
+        "AWS Client ID": {
+          "true_lines": 213,
+          "detection_rate": 0.7465,
+          "false_lines": 33,
+          "false_positive_rate": 0.7576
+        },
+        "JSON Web Token": {
+          "true_lines": 182,
+          "detection_rate": 1.0,
+          "false_lines": 61,
+          "false_positive_rate": 0.8361
+        },
+        "Nonce": {
+          "true_lines": 178,
+          "detection_rate": 0.2472,
+          "false_lines": 110,
+          "false_positive_rate": 0.0818
+        },
+        "NTLM Token": {
+          "true_lines": 126,
+          "detection_rate": 0.4524,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Credential": {
+          "true_lines": 96,
+          "detection_rate": 0.7083,
+          "false_lines": 602,
+          "false_positive_rate": 0.0648
+        },
+        "AWS S3 Bucket": {
+          "true_lines": 92,
+          "detection_rate": 0.6196,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Salt": {
+          "true_lines": 90,
+          "detection_rate": 0.1111,
+          "false_lines": 130,
+          "false_positive_rate": 0.1
+        },
+        "JWK": {
+          "true_lines": 80,
+          "detection_rate": 0.5625,
+          "false_lines": 3,
+          "false_positive_rate": 1.0
+        },
+        "Dropbox App secret": {
+          "true_lines": 74,
+          "detection_rate": 0.5135,
+          "false_lines": 145,
+          "false_positive_rate": 0.2621
+        },
+        "PASERK Keys": {
+          "true_lines": 72,
+          "detection_rate": 0.7222,
+          "false_lines": 8,
+          "false_positive_rate": 0.0
+        },
+        "OTP / 2FA Secret": {
+          "true_lines": 64,
+          "detection_rate": 0.3906,
+          "false_lines": 3,
+          "false_positive_rate": 0.3333
+        },
+        "PASETO Token": {
+          "true_lines": 63,
+          "detection_rate": 0.9683,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "NKEY Seed": {
+          "true_lines": 60,
+          "detection_rate": 0.8,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Tencent WeChat API App ID": {
+          "true_lines": 47,
+          "detection_rate": 0.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "SQL Password": {
+          "true_lines": 44,
+          "detection_rate": 0.0682,
+          "false_lines": 14,
+          "false_positive_rate": 0.0714
+        },
+        "BASE64 Private Key": {
+          "true_lines": 39,
+          "detection_rate": 0.641,
+          "false_lines": 4,
+          "false_positive_rate": 0.0
+        },
+        "Firebase Domain": {
+          "true_lines": 39,
+          "detection_rate": 0.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "AWS Multi": {
+          "true_lines": 34,
+          "detection_rate": 1.0,
+          "false_lines": 66,
+          "false_positive_rate": 1.0
+        },
+        "CMD Password": {
+          "true_lines": 33,
+          "detection_rate": 0.0,
+          "false_lines": 137,
+          "false_positive_rate": 0.0146
+        },
+        "Twilio Credentials": {
+          "true_lines": 30,
+          "detection_rate": 0.0,
+          "false_lines": 39,
+          "false_positive_rate": 0.0
+        },
+        "Azure Access Token": {
+          "true_lines": 24,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "CURL Options": {
+          "true_lines": 17,
+          "detection_rate": 0.0,
+          "false_lines": 8,
+          "false_positive_rate": 0.0
+        },
+        "Slack Token": {
+          "true_lines": 15,
+          "detection_rate": 0.8,
+          "false_lines": 1,
+          "false_positive_rate": 1.0
+        },
+        "CMD ConvertTo-SecureString": {
+          "true_lines": 13,
+          "detection_rate": 0.1538,
+          "false_lines": 4,
+          "false_positive_rate": 0.25
+        },
+        "Google API Key": {
+          "true_lines": 13,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "BASE64 encoded PEM Private Key": {
+          "true_lines": 12,
+          "detection_rate": 0.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "WunderGraph API Key": {
+          "true_lines": 11,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Google Multi": {
+          "true_lines": 11,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "MailGun API Key": {
+          "true_lines": 8,
+          "detection_rate": 0.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Grafana Provisioned API Key": {
+          "true_lines": 7,
+          "detection_rate": 1.0,
+          "false_lines": 16,
+          "false_positive_rate": 0.875
+        },
+        "CURL User Password": {
+          "true_lines": 7,
+          "detection_rate": 0.0,
+          "false_lines": 2,
+          "false_positive_rate": 0.0
+        },
+        "Akamai Credentials": {
+          "true_lines": 6,
+          "detection_rate": 0.3333,
+          "false_lines": 2,
+          "false_positive_rate": 0.0
+        },
+        "CMD Token": {
+          "true_lines": 6,
+          "detection_rate": 0.5,
+          "false_lines": 2,
+          "false_positive_rate": 0.0
+        },
+        "Salesforce Credentials": {
+          "true_lines": 6,
+          "detection_rate": 0.1667,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Grafana Service Account Token": {
+          "true_lines": 3,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "PostHog Credentials": {
+          "true_lines": 3,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Google OAuth Access Token": {
+          "true_lines": 3,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Product Activation Key": {
+          "true_lines": 3,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Stripe Credentials": {
+          "true_lines": 2,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Postman Credentials": {
+          "true_lines": 2,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Perplexity API Key": {
+          "true_lines": 2,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Docker Swarm Token": {
+          "true_lines": 2,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Github Classic Token": {
+          "true_lines": 1,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Anthropic API Key": {
+          "true_lines": 1,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Twilio Multi": {
+          "true_lines": 1,
+          "detection_rate": 0.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Google OAuth Refresh Token": {
+          "true_lines": 1,
+          "detection_rate": 1.0,
+          "false_lines": 2,
+          "false_positive_rate": 1.0
+        },
+        "CMD Secret": {
+          "true_lines": 1,
+          "detection_rate": 0.0,
+          "false_lines": 18,
+          "false_positive_rate": 0.0556
+        },
+        "Alibaba Access Key ID": {
+          "true_lines": 1,
+          "detection_rate": 0.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Alibaba Multi": {
+          "true_lines": 1,
+          "detection_rate": 1.0,
+          "false_lines": 0,
+          "false_positive_rate": null
+        },
+        "Other": {
+          "true_lines": 0,
+          "detection_rate": null,
+          "false_lines": 20,
+          "false_positive_rate": 0.5
+        },
+        "Grafana Access Policy Token": {
+          "true_lines": 0,
+          "detection_rate": null,
+          "false_lines": 2,
+          "false_positive_rate": 1.0
+        },
+        "Jira / Confluence PAT token": {
+          "true_lines": 0,
+          "detection_rate": null,
+          "false_lines": 4,
+          "false_positive_rate": 0.75
+        },
+        "Facebook Access Token": {
+          "true_lines": 0,
+          "detection_rate": null,
+          "false_lines": 1,
+          "false_positive_rate": 0.0
+        }
+      }
+    }
+  }
+}
