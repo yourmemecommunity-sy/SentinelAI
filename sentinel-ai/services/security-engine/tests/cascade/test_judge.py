@@ -92,7 +92,8 @@ def test_network_errors_become_judge_errors(error, reason):
     judge, ledger = judge_with(StubMessages(error=error))
     with pytest.raises(JudgeError, match=reason):
         judge.judge("text")
-    assert ledger.snapshot()["spent_usd"] > 0  # the reservation stays spent: unknown usage counts as worst case
+    spent = ledger.snapshot()["spent_usd"]
+    assert isinstance(spent, float) and spent > 0  # the reservation stays spent: unknown usage counts as worst case
 
 
 def test_refusal_and_truncation_are_errors():
@@ -110,8 +111,11 @@ def test_budget_cap_stops_calls_before_they_are_sent():
     with pytest.raises(JudgeError, match="judge_budget_exhausted"):
         for _ in range(20):
             judge.judge("short")
-    assert len(stub.calls) < 20 and ledger.snapshot()["refused"] >= 1
-    assert ledger.snapshot()["spent_usd"] <= cap
+    snap = ledger.snapshot()
+    refused, spent = snap["refused"], snap["spent_usd"]
+    assert isinstance(refused, int) and isinstance(spent, float)
+    assert len(stub.calls) < 20 and refused >= 1
+    assert spent <= cap
 
 
 def test_unknown_models_cannot_be_priced_so_they_are_refused():

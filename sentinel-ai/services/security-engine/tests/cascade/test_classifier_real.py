@@ -10,7 +10,7 @@ from app.cascade.cascade import Cascade
 from app.cascade.classifier import ClassifierUnavailable, OnnxInjectionClassifier, StaticClassifier
 from app.cascade.judge import FakeJudge
 from app.models.scan import ScanRequest
-from cascade_helpers import CONFIG, verdict
+from cascade_helpers import classifier_of, CONFIG, explain, verdict
 
 MODEL = Path(__file__).resolve().parents[2] / "models" / "injection-classifier"
 needs_model = pytest.mark.skipif(not (MODEL / "model.onnx").exists(), reason="classifier files not fetched")
@@ -62,7 +62,7 @@ def test_partial_coverage_sends_a_low_score_to_the_judge(registry):
     p = ScanPipeline(registry, Settings(), Cascade(clf, judge, CONFIG))
     r = p.scan(ScanRequest(text="A long document.", organization_id="org"))
     assert len(judge.received) == 1 and r.decision.value == "BLOCK"
-    assert r.explanation.classifier.windows_total == 9 and r.explanation.classifier.windows_scored == 4
+    assert classifier_of(explain(r)).windows_total == 9 and classifier_of(explain(r)).windows_scored == 4
 
 
 def test_windows_cover_every_token_with_overlap():

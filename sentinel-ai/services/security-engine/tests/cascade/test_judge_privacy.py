@@ -1,7 +1,7 @@
 """PRIVACY: raw personal data never reaches the external judge; only Sentinel's sanitized text does."""
 from app.cascade.judge import FakeJudge
 from app.models.scan import ScanRequest
-from cascade_helpers import make_pipeline, verdict
+from cascade_helpers import explain, judge_of, make_pipeline, verdict
 
 EMAIL = "maria.gonzalez@example.com"
 PHONE = "+1 415 555 0142"
@@ -35,7 +35,7 @@ def test_explanations_and_logs_carry_no_content(registry, caplog):
     p, _, _ = make_pipeline(registry, score=0.5, judge=judge)
     text = f"Please email {EMAIL} the summary"
     r = p.scan(ScanRequest(text=text, organization_id="org"))
-    blob = r.explanation.storable().model_dump_json()
+    blob = explain(r).storable().model_dump_json()
     assert EMAIL not in blob and "summary" not in blob
-    assert r.explanation.storable().judge.reason is None and r.explanation.judge.reason == "test"
+    assert judge_of(explain(r).storable()).reason is None and judge_of(explain(r)).reason == "test"
     assert EMAIL not in caplog.text
