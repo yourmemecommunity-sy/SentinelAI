@@ -3,7 +3,9 @@
 # (all engine dependencies + the pinned classifier). Inside WSL/Linux with Docker; CredData built per
 # docs/verification/10-pii-secrets-evaluation.md. Results: $OUT/creddata-{tier1,cascade}.json, then $OUT/creddata.done
 #   bash scripts/security/run-creddata-cascade.sh [/root/creddata] [/root/eval-out-v2]
-#   SHARDS=3 bash scripts/security/run-creddata-cascade.sh ...   # N parallel engine processes (~1.5 GiB each)
+#   SHARDS=3 SENTINEL_CLASSIFIER_THREADS=3 bash scripts/security/run-creddata-cascade.sh ...   # N parallel engine
+#     processes (~1.7 GiB each). A single-process checkpoint can seed shard 0 (both start at row 0): set its "hi" to
+#     shard 0's end row and save it as creddata-cascade.shard0.partial.json.
 #   tail -f /root/eval-out-v2/creddata-cascade*.log               # "progress ..." lines every 1,000 lines with an ETA
 #
 # Robust to crashes, WSL/Docker restarts and laptop sleep: every run checkpoints every 1,000 lines
@@ -19,6 +21,7 @@ docker rm -f sentinel-creddata-eval >/dev/null 2>&1 || true
 docker run -d --name sentinel-creddata-eval --restart unless-stopped \
   -v "$PWD:/repo:ro" -v "$CRED:/creddata:ro" -v "$OUT:/out" -w /repo/services/security-engine \
   -e SENTINEL_CLASSIFIER_DIR=/srv/models/injection-classifier -e SHARDS="$SHARDS" \
+  -e SENTINEL_CLASSIFIER_THREADS="${SENTINEL_CLASSIFIER_THREADS:-2}" \
   --entrypoint sh sentinel-ai/security-engine:local -c '
     EVAL=../../scripts/security/run_data_leakage_evaluation.py
     echo "container (re)started $(date -u +%FT%TZ), shards=$SHARDS" >> /out/creddata-cascade.log
