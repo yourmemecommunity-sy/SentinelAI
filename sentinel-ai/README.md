@@ -68,6 +68,7 @@ Every row below was executed on real infrastructure, not mocks. The evidence (co
 | No fixable HIGH/CRITICAL CVEs in any image; no secret in the tree | Trivy, gitleaks, pnpm audit, pip-audit | [07](docs/verification/07-ci.md) |
 | v2 cascade: a pinned local classifier blocks injections in the running stack; `/ready` proves it loads and works; the engine can reach only the AI judge's API (other hosts refused, a library's telemetry call blocked) | Docker stack, ONNX Runtime, allow-list egress proxy; 77 container checks | [12](docs/verification/12-ai-vs-ai.md) |
 | v2 explanations, replay, red-team rounds stored and shown (migration 0009, RLS) | PostgreSQL in the stack + PGlite suites; live red-team rounds against the gateway | [12](docs/verification/12-ai-vs-ai.md) |
+| Revoking an API key mid-stream stops further text at once (0 words after revocation, was 5,723); the rest is scanned whole, then released or dropped, and audited | Docker stack under load, slow mock provider | [13](docs/verification/13-stream-revocation.md) |
 | **Not verified:** the Claude judge and Claude red-team generator (no API key; built and tested against fakes only) | — | [12](docs/verification/12-ai-vs-ai.md#7-blockers-and-what-the-owner-must-do) |
 
 ## Numbers
@@ -144,6 +145,20 @@ workers now recover most of it** (53 → 89 scans/s with 2 workers, rules + NER)
 and costs about two thirds of scan throughput (17.6 → 25.8 scans/s with 1 → 2 workers, ~1.2 GiB memory per worker)
 ([details](docs/verification/12-ai-vs-ai.md)). All numbers are single-instance, with 0 failed requests; run-to-run variance
 on a shared laptop is tens of percent.
+
+### 4. Revoking a key while its reply is streaming
+
+24 streams, each revoked 1.5 s after its first word, alongside 16 concurrent background streams
+([details](docs/verification/13-stream-revocation.md)):
+
+| | Before | **After (quarantine on revoke)** |
+|---|---|---|
+| Streams that kept delivering text after revocation | 22 of 24 | **0 of 24** |
+| Words delivered after revocation (total · median · max per stream) | 5,723 · 181 · 364 | **0** |
+| Last word arrived after revocation (median · max) | 11.4 s · 18.4 s | **none** |
+| Quarantine outcome (whole reply scanned, then released or dropped) | — | 2 released · 2 dropped by policy · **20 dropped: engine time budget exceeded under load** |
+| Same, lighter load (4 background streams) | — | **12 released (every clean reply) · 12 dropped by policy (every fake credential)** · 0 leaked |
+| Background streams: first word · full reply (p50) | 2.9 s · 18.4 s | 2.7 s · 18.1 s (no measurable cost) |
 
 ## AI vs AI
 
@@ -223,6 +238,8 @@ To check the whole stack: `bash scripts/development/docker-verify.sh`.
   but not built ([why](docs/LEARNING.md#7-rate-limiting-per-instance-today-and-the-fix)).
 * Runs on one machine only: no managed-cloud deployment, no multi-node Kubernetes (Helm verified on a single-node `kind`
   cluster), and no soak test. Benchmarks share one laptop CPU with the load generator.
+* **Quarantine on revoke drops clean replies under heavy load**: the whole-reply scan can exceed the engine's time budget
+  (20 of 24 at 16 concurrent streams; fail closed, nothing leaked). It covers API keys, not user sessions.
 * No SSO/MFA (roadmap phase 4).
 
 Full status: [docs/architecture/roadmap.md](docs/architecture/roadmap.md) · design decisions explained:

@@ -482,3 +482,37 @@ a difference.
    live re-judgement (and pays for it).
 3. *How would you use replay in an incident?* — Replay the blocked or missed events against the current versions after a
    fix: the version diff shows what changed, and the decision diff shows whether the fix would have changed the outcome.
+
+## 15. Revoking a key in the middle of a stream
+
+**What it is.** API keys are checked when a request starts. A streamed reply can then run for minutes, so revoking a stolen
+key used to stop new requests but not the reply already flowing: measured under load, 22 of 24 streams kept going for up to
+18 s and delivered 5,723 words after the revocation. "Quarantine on revoke" closes that window.
+
+**How it works.** Every open API-key stream subscribes to a `RevocationWatcher`. Revoking a key through the API notifies it
+at once; a batched poll (one query per organization per second) catches revocations made on another replica, expiry and
+deleted keys. From the next provider chunk on, the gateway releases nothing. It lets the provider finish into a buffer the
+caller cannot see, scans the complete reply once with the normal output checks, and then either releases the unseen rest
+(clean, release enabled, outcome audited) or drops it. The stream always ends with a `stream_quarantined` event that says
+which, and every outcome is written to the audit log without content.
+
+**What was learned.** Measured after the change: 0 words reached any caller after revocation. But scanning the whole reply
+is one large engine request: under the same 16-stream load it exceeded the engine's time budget in 20 of 24 cases, so those
+replies were dropped (fail closed). The budget was not raised to improve the number, because that would weaken it for every
+request.
+
+**Read:** `apps/api/src/security/revocationWatcher.ts` → `apps/api/src/services/secureStreamService.ts` (`settleQuarantine`)
+→ `apps/api/tests/streaming/revocation.test.ts` → `scripts/security/stream-revocation-test.mjs` →
+`docs/verification/13-stream-revocation.md`.
+
+**Interview questions**
+1. *Why not just cut the connection when the key is revoked?* — You can, and with `STREAM_QUARANTINE_RELEASE=false` the
+   reply is always dropped. Cutting the socket gives the client no reason, though, and leaves no audited outcome. The quarantine
+   ends with an explicit event and an audit row, and lets operators choose whether a clean reply to a request that was valid
+   when it started may still be delivered.
+2. *How fast does a stream notice the revocation, and what still leaks?* — On the instance that handled the revoke, before
+   the next chunk is released. On other replicas, within one poll interval (1 s by default). What can still arrive is the one
+   segment already written to the socket; in the measurement nothing arrived after the revoke call returned.
+3. *What happens if the revocation check itself fails?* — The streams it covers are quarantined with
+   `revocation_check_failed`: the gateway cannot prove the key is still valid, so it fails closed. A clean reply can still be
+   released after the whole-reply scan, so a database hiccup costs latency, not data.

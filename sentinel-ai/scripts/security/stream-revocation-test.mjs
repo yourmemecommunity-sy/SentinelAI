@@ -111,7 +111,8 @@ async function main() {
         deltas.push([t, words(data.text), data.text.length, /AKIA[A-Z0-9]{16}/.test(data.text)]);
         if (firstDelta === null) { firstDelta = t; revoking = sleep(REVOKE_AFTER_MS).then(revoke); }
       } else if (ev === "done") final = { event: "done" };
-      else if (ev === "error") final = { event: "error", error: data?.error, ...(data?.outcome ? { outcome: data.outcome } : {}), ...(data?.reason ? { reason: data.reason } : {}) };
+      else if (ev === "error") final = { event: "error", error: data?.error, ...(data?.outcome ? { outcome: data.outcome } : {}), ...(data?.reason ? { reason: data.reason } : {}),
+        ...(data?.detail ? { detail: data.detail } : {}) };
       else if (ev === "http_error") final = { event: `http_${data.status}` };
     });
     const end = now();
@@ -142,7 +143,7 @@ async function main() {
 
   const sum = (f) => trials.reduce((a, t) => a + f(t), 0);
   const finals = {};
-  for (const t of trials) { const k = t.final ? [t.final.event, t.final.error, t.final.outcome].filter(Boolean).join(":") : "none"; finals[k] = (finals[k] ?? 0) + 1; }
+  for (const t of trials) { const k = t.final ? [t.final.event, t.final.error, t.final.outcome, t.final.detail].filter(Boolean).join(":") : "none"; finals[k] = (finals[k] ?? 0) + 1; }
   console.log(JSON.stringify({
     label: LABEL, generated_at: new Date().toISOString(),
     config: { TRIALS, PARALLEL, BG_STREAMS, REVOKE_AFTER_MS, mock_tokens: Number(process.env.MOCK_STREAM_TOKENS || 0), mock_token_ms: Number(process.env.MOCK_TOKEN_MS || 0) },

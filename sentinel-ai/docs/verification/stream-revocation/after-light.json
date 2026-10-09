@@ -1,0 +1,567 @@
+{
+  "label": "after-light",
+  "generated_at": "2026-10-09T16:30:32.360Z",
+  "config": {
+    "TRIALS": 24,
+    "PARALLEL": 4,
+    "BG_STREAMS": 4,
+    "REVOKE_AFTER_MS": 1500,
+    "mock_tokens": 400,
+    "mock_token_ms": 25
+  },
+  "summary": {
+    "trials": 24,
+    "streams_continuing_after_revoke": 0,
+    "words_after_revoke_live": {
+      "total": 0,
+      "n": 24,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "chars_after_revoke_live_total": 0,
+    "last_live_delta_ms": {
+      "n": 24,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "end_ms": {
+      "n": 24,
+      "p50": 6633,
+      "p95": 6742,
+      "p99": 6756,
+      "max": 6756
+    },
+    "words_released_after_quarantine_scan": 3792,
+    "final_events": {
+      "error:stream_quarantined:released": 12,
+      "error:stream_quarantined:dropped:policy_block": 12
+    },
+    "fake_key_reached_client": 0,
+    "key_rejected_after_revoke": 24,
+    "revoke_call_ms": {
+      "n": 24,
+      "p50": 32,
+      "p95": 45,
+      "p99": 58,
+      "max": 58
+    },
+    "background": {
+      "streams": 28,
+      "first_delta_ms": {
+        "n": 28,
+        "p50": 2294,
+        "p95": 2476,
+        "p99": 2478,
+        "max": 2478
+      },
+      "total_ms": {
+        "n": 28,
+        "p50": 10370,
+        "p95": 10598,
+        "p99": 10607,
+        "max": 10607
+      },
+      "finals": {
+        "done": 28
+      }
+    }
+  },
+  "trials": [
+    {
+      "trial": 0,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 30,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6587,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 2,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 32,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6547,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 3,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 32,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6552,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 1,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 41,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6559,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 4,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 58,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6565,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 6,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 42,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6561,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 5,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 38,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6606,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 7,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 32,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6584,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 8,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 38,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6568,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 10,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 32,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6597,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 9,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 18,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6731,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 11,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 24,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6700,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 13,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 42,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6698,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 15,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 33,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6756,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 12,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 34,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6688,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 14,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 45,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6645,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 17,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 25,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6575,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 19,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 25,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6710,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 18,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 23,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6677,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 16,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 34,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6633,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 21,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 27,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6604,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 20,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 23,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6677,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 23,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "dropped",
+        "reason": "key_revoked",
+        "detail": "policy_block"
+      },
+      "revoke_call_ms": 20,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 6742,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 22,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "stream_quarantined",
+        "outcome": "released",
+        "reason": "key_revoked"
+      },
+      "revoke_call_ms": 23,
+      "words_before_revoke": 83,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 316,
+      "last_live_delta_ms": 0,
+      "end_ms": 6711,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    }
+  ]
+}

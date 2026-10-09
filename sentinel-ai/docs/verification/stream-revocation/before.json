@@ -1,0 +1,498 @@
+{
+  "label": "before",
+  "generated_at": "2026-10-06T16:51:19.670Z",
+  "config": {
+    "TRIALS": 24,
+    "PARALLEL": 4,
+    "BG_STREAMS": 16,
+    "REVOKE_AFTER_MS": 1500,
+    "mock_tokens": 400,
+    "mock_token_ms": 25
+  },
+  "summary": {
+    "trials": 24,
+    "streams_continuing_after_revoke": 22,
+    "words_after_revoke_live": {
+      "total": 5723,
+      "n": 24,
+      "p50": 181,
+      "p95": 364,
+      "p99": 364,
+      "max": 364
+    },
+    "chars_after_revoke_live_total": 27555,
+    "last_live_delta_ms": {
+      "n": 24,
+      "p50": 11408,
+      "p95": 15083,
+      "p99": 18398,
+      "max": 18398
+    },
+    "end_ms": {
+      "n": 24,
+      "p50": 12166,
+      "p95": 15144,
+      "p99": 18420,
+      "max": 18420
+    },
+    "words_released_after_quarantine_scan": 0,
+    "final_events": {
+      "error:blocked": 13,
+      "done": 11
+    },
+    "fake_key_reached_client": 0,
+    "key_rejected_after_revoke": 24,
+    "revoke_call_ms": {
+      "n": 24,
+      "p50": 37,
+      "p95": 349,
+      "p99": 368,
+      "max": 368
+    },
+    "background": {
+      "streams": 112,
+      "first_delta_ms": {
+        "n": 112,
+        "p50": 2925,
+        "p95": 3632,
+        "p99": 3893,
+        "max": 3900
+      },
+      "total_ms": {
+        "n": 112,
+        "p50": 18379,
+        "p95": 24491,
+        "p99": 24621,
+        "max": 24699
+      },
+      "finals": {
+        "done": 112
+      }
+    }
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 139,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 7998,
+      "end_ms": 8775,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 3,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 98,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 8427,
+      "end_ms": 9138,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 2,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 157,
+      "words_before_revoke": 67,
+      "words_after_revoke_live": 332,
+      "chars_after_revoke_live": 1631,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 12126,
+      "end_ms": 12166,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 0,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 66,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 348,
+      "chars_after_revoke_live": 1696,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 12473,
+      "end_ms": 12525,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 7,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked",
+        "reason": "timeout"
+      },
+      "revoke_call_ms": 349,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 1611,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 4,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked",
+        "reason": "timeout"
+      },
+      "revoke_call_ms": 296,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 0,
+      "chars_after_revoke_live": 0,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 0,
+      "end_ms": 1697,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 5,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 297,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 181,
+      "chars_after_revoke_live": 844,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 11408,
+      "end_ms": 12396,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 6,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 368,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 364,
+      "chars_after_revoke_live": 1760,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 18398,
+      "end_ms": 18420,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 9,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 32,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 181,
+      "chars_after_revoke_live": 844,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 8378,
+      "end_ms": 9181,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 11,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 40,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 181,
+      "chars_after_revoke_live": 844,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 8424,
+      "end_ms": 9177,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 10,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 47,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 364,
+      "chars_after_revoke_live": 1760,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 14730,
+      "end_ms": 14839,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 8,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 29,
+      "words_before_revoke": 35,
+      "words_after_revoke_live": 364,
+      "chars_after_revoke_live": 1760,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 14537,
+      "end_ms": 14694,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 15,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 33,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 8113,
+      "end_ms": 8758,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 13,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 34,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 8536,
+      "end_ms": 9395,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 14,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 22,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 348,
+      "chars_after_revoke_live": 1696,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 14706,
+      "end_ms": 14801,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 12,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 23,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 348,
+      "chars_after_revoke_live": 1696,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 15083,
+      "end_ms": 15144,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 19,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 37,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 7856,
+      "end_ms": 8432,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 17,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 31,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 7977,
+      "end_ms": 8617,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 18,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 41,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 348,
+      "chars_after_revoke_live": 1696,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 12764,
+      "end_ms": 12781,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 16,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 34,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 348,
+      "chars_after_revoke_live": 1696,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 12742,
+      "end_ms": 12758,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 21,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 26,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 7783,
+      "end_ms": 8334,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 23,
+      "leak_prompt": true,
+      "status": 200,
+      "final": {
+        "event": "error",
+        "error": "blocked"
+      },
+      "revoke_call_ms": 21,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 165,
+      "chars_after_revoke_live": 780,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 8177,
+      "end_ms": 8698,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 20,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 27,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 348,
+      "chars_after_revoke_live": 1696,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 14481,
+      "end_ms": 14521,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    },
+    {
+      "trial": 22,
+      "leak_prompt": false,
+      "status": 200,
+      "final": {
+        "event": "done"
+      },
+      "revoke_call_ms": 22,
+      "words_before_revoke": 51,
+      "words_after_revoke_live": 348,
+      "chars_after_revoke_live": 1696,
+      "words_after_revoke_release": 0,
+      "last_live_delta_ms": 14388,
+      "end_ms": 14469,
+      "fake_key_reached_client": false,
+      "key_rejected_after": true
+    }
+  ]
+}

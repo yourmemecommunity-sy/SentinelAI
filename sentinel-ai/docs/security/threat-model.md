@@ -51,6 +51,7 @@ compromised provider; curious/compromised tenant admin; insider with DB/log acce
 | T39 | Classifier blocks legitimate business text (availability) | Thresholds calibrated on realistic benign train text from several sources (D43); explanations show which tier blocked; replay shows what a threshold change would do | Implemented; residual false blocks 0.7–2.3 % on held-out PII-bearing text |
 | T40 | Classifier model swapped or corrupted | Pinned Hugging Face commit, SHA-256 of model and tokenizer checked at build and at load; a mismatch makes the engine not-ready | Implemented + tested |
 | T41 | Replay used as an oracle for other text | Replay refuses text whose keyed HMAC differs from the event's; read-only; audit-logged; live judge needs `evaluation:run` | Implemented + tested |
+| T42 | A revoked (stolen, leaked, rotated) API key keeps receiving a reply that is already streaming | Quarantine on revoke: the revoke route notifies open streams on this instance immediately, a 1 s batched poll covers other replicas and expiry; no further deltas; the rest of the reply is buffered server-side, scanned whole, released only if clean and audited, else dropped; check failures quarantine too (fail closed). Measured: 5,723 words after revocation before, 0 after | Implemented + tested + measured under load ([13](../verification/13-stream-revocation.md)); user (JWT) streams not covered |
 | T29 | Text hidden in image pixels | OCR text is scanned; an image with no recognised text is allowed with an `ocr_no_text` finding | **Gap**: OCR cannot see what it cannot read; Tesseract never run for real |
 
 ## Known gaps
@@ -61,7 +62,8 @@ compromised provider; curious/compromised tenant admin; insider with DB/log acce
 - **Obfuscated PII/secrets** (e.g. spaced-out emails or keys) are not normalized like injections are.
 - **Self-authored evaluation set**: 100% pass demonstrates no regression on known cases, not resistance to unseen attacks.
 - **Regex time limit**: Python `re` cannot be interrupted; a pathological pattern added later could stall a worker (mitigate by review + process-level timeout at the gateway).
-- **MFA, SSO, email verification and password reset are not implemented.** Access tokens are not revocable before expiry (<= 15 min); role changes apply at next refresh.
+- **MFA, SSO, email verification and password reset are not implemented.** Access tokens are not revocable before expiry (<= 15 min); role changes apply at next refresh. Mid-stream quarantine covers API keys only, not user sessions.
+- **Quarantine on revoke can drop clean replies under load**: the whole-reply scan is one large engine request; with 16 concurrent streams on one engine worker it exceeded the engine's time budget in 20 of 24 cases and the reply was dropped (fail closed, never leaked). Replicas detect a revocation made elsewhere only at the next poll (default 1 s).
 - **Provider calls are tested against mocked APIs**; the real Gemini/OpenAI/Anthropic endpoints have never been called (wire formats follow their public docs and are unverified against live responses). Only Ollama discovery has run against a real server.
 - **Streaming and the vault are new**: never run against a real Redis server, real provider SSE or a browser. See [streaming-and-tokenization.md](streaming-and-tokenization.md#known-limitations).
 - **Released stream text cannot be recalled**, and the look-ahead is finite (values longer than `STREAM_HOLDBACK_CHARS` may have their start released before they are recognised).

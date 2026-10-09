@@ -76,11 +76,13 @@ paths:
         Same input screening as /v1/ai/chat; the reply is scanned with a look-ahead before each piece is released, tokens minted by TOKENIZE
         policies are hydrated after the scan, and the stream ends with a `done` event (or an `error` event). Failures before the first byte are
         ordinary JSON responses. After the first byte a client must treat anything other than `done` as a failure.
+        If the API key is revoked (or cannot be re-checked) mid-stream, nothing more is released; the rest of the reply is held server-side,
+        scanned whole, then released or dropped, and the stream ends with `error {error: "stream_quarantined", reason, outcome, detail, event_id}`.
         See docs/security/streaming-and-tokenization.md.
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AiStreamRequest" } } } }
       responses:
         "200":
-          description: "text/event-stream. Events: delta {text}; done {provider, model, hydration, security}; error {error, ...}"
+          description: "text/event-stream. Events: delta {text}; done {provider, model, hydration, security}; error {error, ...} (incl. stream_quarantined)"
           content: { text/event-stream: { schema: { type: string } } }
         "403": { description: blocked before streaming (policy, unknown provider, fail-closed), content: { application/json: { schema: { $ref: "#/components/schemas/BlockedError" } } } }
         "413": { description: input too large }
