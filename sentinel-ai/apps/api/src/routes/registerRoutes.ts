@@ -25,6 +25,7 @@ import { principalOf, requirePermission } from "../middleware/auth.js";
 import { can } from "../security/rbac.js";
 import type { PolicyRepository } from "../repositories/policyRepository.js";
 import type { ApiKeyAuthenticator } from "../security/apiKeys.js";
+import type { RevocationWatcher } from "../security/revocationWatcher.js";
 import type { SecurityScanner } from "../security/securityClient.js";
 import type { ChatOutcome, SecureAiService } from "../services/secureAiService.js";
 import {
@@ -45,6 +46,8 @@ export interface RouteDeps {
   documents?: DocumentScanner;
   /** When absent, /v1/ai/stream is not registered. */
   streaming?: SecureStreamService;
+  /** Quarantine on revoke: open streams learn that their API key was revoked. */
+  revocations?: RevocationWatcher;
   /** Token vault (hydration of tokenized values). When absent, `session_id` is ignored and replies are never hydrated. */
   vault?: TokenVault;
   /** When absent, /v1/api-keys is not registered. */
@@ -99,8 +102,8 @@ export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
   });
 
   if (d.fileScan) registerFileRoutes(app, { auth: d.auth, files: d.fileScan, maxFileBytes: d.config.maxFileBytes });
-  if (d.streaming) registerStreamRoutes(app, { auth: d.auth, streaming: d.streaming, vault: d.vault, config: d.config, sendOutcome: sendChatOutcome as never });
-  if (d.apiKeys) registerApiKeyRoutes(app, { auth: d.auth, keys: d.apiKeys, auditLog: d.auditLog });
+  if (d.streaming) registerStreamRoutes(app, { auth: d.auth, streaming: d.streaming, vault: d.vault, revocations: d.revocations, config: d.config, sendOutcome: sendChatOutcome as never });
+  if (d.apiKeys) registerApiKeyRoutes(app, { auth: d.auth, keys: d.apiKeys, auditLog: d.auditLog, revocations: d.revocations });
   if (d.directory) registerDirectoryRoutes(app, { auth: d.auth, directory: d.directory, auditLog: d.auditLog, pepper: d.config.apiKeyPepper,
     ...(d.authLimits ? { acceptLimit: d.authLimits.ipPerMinute } : {}) });
   if (d.redTeam) registerRedTeamRoutes(app, { auth: d.auth, repo: d.redTeam, auditLog: d.auditLog });

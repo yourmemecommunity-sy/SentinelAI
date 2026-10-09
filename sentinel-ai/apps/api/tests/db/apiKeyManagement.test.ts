@@ -9,6 +9,7 @@ import { MAX_ACTIVE_KEYS, PgApiKeyRepository } from "../../src/repositories/apiK
 import { PgAuthRepository } from "../../src/repositories/authRepository.js";
 import { PgPolicyRepository } from "../../src/repositories/policyRepository.js";
 import { DbApiKeyAuthenticator } from "../../src/security/apiKeys.js";
+import { RevocationWatcher } from "../../src/security/revocationWatcher.js";
 import { CompositeAuthenticator } from "../../src/security/authenticators.js";
 import { hashPassword } from "../../src/security/passwords.js";
 import { ROLES, roleCanGrant, type RoleName } from "../../src/security/rbac.js";
@@ -21,6 +22,7 @@ import { createMigratedDb } from "../helpers/testDb.js";
 const PW = "Tr0ub4dor&3-horse-staple";
 const PEPPER = "p".repeat(40);
 let db: TestDb; let tdb: PgliteTenantDb; let app: FastifyInstance; let orgA: string; let orgB: string;
+let repo: PgApiKeyRepository; let revocations: RevocationWatcher;
 const jwt: Record<string, string> = {};
 
 const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
@@ -45,7 +47,8 @@ beforeAll(async () => {
     auth: new CompositeAuthenticator(new DbApiKeyAuthenticator(tdb, PEPPER), tokens),
     service: new SecureAiService({ scanner, router: new AiRouter().register(new FakeProvider()), policies, events }),
     authService: new AuthService({ repo: new PgAuthRepository(tdb), tokens, audit, accessTtlSeconds: 900, refreshTtlSeconds: 86_400 }),
-    apiKeys: new PgApiKeyRepository(tdb, PEPPER), signupEnabled: true, authLimits: { ipPerMinute: 100_000, emailPerMinute: 100_000 },
+    apiKeys: (repo = new PgApiKeyRepository(tdb, PEPPER)), revocations: (revocations = new RevocationWatcher(undefined, 60_000)),
+    signupEnabled: true, authLimits: { ipPerMinute: 100_000, emailPerMinute: 100_000 },
   }, { logger: false });
 
   const signup = async (org: string, email: string) => (await app.inject({ method: "POST", url: "/v1/auth/signup", payload: { organization_name: org, email, password: PW } })).json();
@@ -155,6 +158,27 @@ describe("revoking keys", () => {
     expect((await app.inject({ method: "GET", url: "/v1/auth/me", headers: h })).statusCode).toBe(401);
     expect((await call("DELETE", `/v1/api-keys/${k.id}`, jwt.OWNER!)).statusCode).toBe(204);
     expect((await call("GET", "/v1/api-keys", jwt.OWNER!)).json().api_keys.find((x: { id: string }) => x.id === k.id).revoked_at).toBeTruthy();
+  });
+
+  it("revoking tells open streams on that key immediately (quarantine on revoke)", async () => {
+    const k = (await create(jwt.OWNER!, { name: "streaming", role: "DEVELOPER" })).json();
+    const told: string[] = [];
+    revocations.watch(orgA, k.id, (r) => told.push(r));
+    expect((await call("DELETE", `/v1/api-keys/${k.id}`, jwt.OWNER!)).statusCode).toBe(204);
+    expect(told).toEqual(["key_revoked"]);
+  });
+
+  it("revokedAmong: revoked, expired, unknown and other-organization keys all count as no longer usable", async () => {
+    const live = (await create(jwt.OWNER!, { name: "live", role: "DEVELOPER" })).json();
+    const gone = (await create(jwt.OWNER!, { name: "gone", role: "DEVELOPER" })).json();
+    const old = (await create(jwt.OWNER!, { name: "old", role: "DEVELOPER" })).json();
+    const foreign = (await create(jwt.OWNER_B!, { name: "b", role: "DEVELOPER" })).json();
+    await call("DELETE", `/v1/api-keys/${gone.id}`, jwt.OWNER!);
+    await db.query("UPDATE api_keys SET expires_at = now() - interval '1 minute' WHERE id = $1", [old.id]);
+    const unknown = "00000000-0000-4000-8000-000000000000";
+    expect((await repo.revokedAmong(orgA, [live.id, gone.id, old.id, unknown, foreign.id])).sort())
+      .toEqual([gone.id, old.id, unknown, foreign.id].sort());
+    expect(await repo.revokedAmong(orgA, [])).toEqual([]);
   });
 
   it("cannot revoke a key more privileged than yourself, but can revoke your own tier", async () => {

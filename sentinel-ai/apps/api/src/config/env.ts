@@ -35,6 +35,10 @@ const Schema = z.object({
   STREAM_MAX_DURATION_MS: z.coerce.number().int().min(1000).max(3_600_000).default(300_000),
   STREAM_MAX_OUTPUT_CHARS: z.coerce.number().int().min(1).max(500_000).default(200_000),
   STREAM_MAX_CONCURRENT: z.coerce.number().int().min(1).max(1000).default(10),
+  /** How often open streams re-check their API key (revocations made on another replica, expiry). Same-instance revocations are immediate. */
+  STREAM_REVOCATION_POLL_MS: z.coerce.number().int().min(100).max(60_000).default(1000),
+  /** After a mid-stream revocation, release a clean quarantined reply (true) or always drop it (false). */
+  STREAM_QUARANTINE_RELEASE: z.enum(["true", "false"]).default("true"),
   MAX_INPUT_CHARS: z.coerce.number().int().min(1).max(500_000).default(200_000),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
   JWT_ACCESS_SECRET: z.string().optional(),
@@ -67,7 +71,10 @@ export interface AppConfig {
   maxFileBytes: number;
   /** Token vault (reversible tokenization). Optional: without it replies are never hydrated. */
   vault: { url: string; token: string | undefined; timeoutMs: number } | undefined;
-  stream: { holdBackChars: number; minSegmentChars: number; idleTimeoutMs: number; maxDurationMs: number; maxOutputChars: number; maxConcurrent: number };
+  stream: {
+    holdBackChars: number; minSegmentChars: number; idleTimeoutMs: number; maxDurationMs: number; maxOutputChars: number; maxConcurrent: number;
+    quarantineRelease: boolean; revocationPollMs: number;
+  };
   rateLimitPerMinute: number;
   jwtAccessSecret: string | undefined;
   accessTtlSeconds: number;
@@ -122,6 +129,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     stream: {
       holdBackChars: e.STREAM_HOLDBACK_CHARS, minSegmentChars: e.STREAM_MIN_SEGMENT_CHARS, idleTimeoutMs: e.STREAM_IDLE_TIMEOUT_MS,
       maxDurationMs: e.STREAM_MAX_DURATION_MS, maxOutputChars: Math.min(e.STREAM_MAX_OUTPUT_CHARS, e.MAX_INPUT_CHARS), maxConcurrent: e.STREAM_MAX_CONCURRENT,
+      quarantineRelease: e.STREAM_QUARANTINE_RELEASE === "true", revocationPollMs: e.STREAM_REVOCATION_POLL_MS,
     },
     rateLimitPerMinute: e.RATE_LIMIT_PER_MINUTE,
     jwtAccessSecret: e.JWT_ACCESS_SECRET,

@@ -6,6 +6,7 @@ import { buildApp } from "../../src/app.js";
 import { InMemoryAuditLog } from "../../src/events/auditLog.js";
 import { InMemoryEventSink } from "../../src/events/eventSink.js";
 import { eventFrame } from "../../src/routes/streamRoutes.js";
+import { RevocationWatcher } from "../../src/security/revocationWatcher.js";
 import type { SecurityScanner } from "../../src/security/securityClient.js";
 import { VaultUnavailableError, type TokenVault } from "../../src/security/tokenVault.js";
 import { SecureAiService } from "../../src/services/secureAiService.js";
@@ -36,17 +37,19 @@ class Vault implements TokenVault {
 
 const KEYS = { snl_dev: principal({ role: "DEVELOPER" }), snl_view: principal({ role: "VIEWER", apiKeyId: "key-view" }), snl_dev2: principal({ role: "DEVELOPER", apiKeyId: "key-2" }) };
 let app: FastifyInstance; let base = ""; let provider: FakeProvider; let engine: Engine; let vault: Vault; let events: InMemoryEventSink;
+let audit: InMemoryAuditLog; let revocations: RevocationWatcher;
 
 async function start(over: { maxConcurrent?: number; withVault?: boolean } = {}) {
   provider = new FakeProvider(); engine = new Engine(); vault = new Vault(); events = new InMemoryEventSink();
+  audit = new InMemoryAuditLog(); revocations = new RevocationWatcher(undefined, 1000);
   const router = new AiRouter().register(provider);
   const policies = new MemoryPolicies();
   const v = over.withVault === false ? undefined : vault;
   const service = new SecureAiService({ scanner: engine, router, policies, events, vault: v });
   app = buildApp({
     config: { ...TEST_CONFIG, maxInputChars: 2000, stream: { ...TEST_CONFIG.stream, holdBackChars: 24, minSegmentChars: 4, maxConcurrent: over.maxConcurrent ?? 10 } },
-    scanner: engine, events, policies, auditLog: new InMemoryAuditLog(), auth: new FakeAuth(KEYS), ping: async () => true, service,
-    ...(v ? { vault: v } : {}), streaming: new SecureStreamService({ service, router, vault: v, limits: { holdBackChars: 24, minSegmentChars: 4 } }),
+    scanner: engine, events, policies, auditLog: audit, auth: new FakeAuth(KEYS), ping: async () => true, service, revocations,
+    ...(v ? { vault: v } : {}), streaming: new SecureStreamService({ service, router, vault: v, auditLog: audit, limits: { holdBackChars: 24, minSegmentChars: 4 } }),
   }, { logger: false });
   await app.listen({ port: 0, host: "127.0.0.1" });
   base = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
@@ -68,6 +71,35 @@ function parse(sse: string): Frame[] {
 const textOf = (frames: Frame[]) => frames.filter((f) => f.event === "delta").map((f) => f.data.text).join("");
 
 describe("POST /v1/ai/stream", () => {
+  it("revoking the stream's key mid-stream quarantines it: no more deltas until the whole reply is scanned, then a terminal quarantine event", async () => {
+    await start();
+    provider.streamPlan = () => Array.from({ length: 60 }, (_, i) => `w${i} `); provider.chunkDelayMs = 5;
+    const res = await post("go");
+    const reader = res.body!.getReader(); const dec = new TextDecoder();
+    let raw = ""; let revokedAt = -1;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      raw += dec.decode(value, { stream: true });
+      if (revokedAt < 0 && raw.includes("event: delta")) { revokedAt = raw.length; revocations.notify("key-1"); }
+    }
+    const frames = parse(raw);
+    const after = parse(raw.slice(revokedAt)).filter((f) => f.event === "delta");
+    expect(after.length).toBeLessThanOrEqual(2);                        // at most one segment already in flight, then the release
+    expect(frames.at(-1)).toMatchObject({ event: "error", data: { error: "stream_quarantined", reason: "key_revoked", outcome: "released" } });
+    expect(textOf(frames)).toBe(Array.from({ length: 60 }, (_, i) => `w${i} `).join(""));
+    expect(audit.entries.filter((e) => e.action === "stream.quarantine")).toHaveLength(1);
+    expect(revocations.watching).toBe(0);                               // the subscription ended with the stream
+  });
+
+  it("a stream on another key is not affected by a revocation", async () => {
+    await start();
+    provider.streamPlan = () => ["one ", "two ", "three"];
+    revocations.notify("key-2");
+    const frames = parse(await (await post("go")).text());
+    expect(frames.at(-1)!.event).toBe("done");
+  });
+
   it("streams text/event-stream frames, hydrates tokens, and ends with a done event carrying the audit ids", async () => {
     await start();
     provider.streamPlan = () => ["Reach ", "them at [TOK_", "EMAIL_1] today, thanks."];

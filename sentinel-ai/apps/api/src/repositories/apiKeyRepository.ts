@@ -16,6 +16,8 @@ export interface ApiKeyRepository {
   get(orgId: string, id: string): Promise<ApiKeyInfo | null>;
   /** Idempotent. Returns false when no such key exists in this organization. */
   revoke(orgId: string, id: string): Promise<boolean>;
+  /** The subset of `ids` that is no longer usable in this organization: revoked, expired or missing (RevocationWatcher). */
+  revokedAmong(orgId: string, ids: string[]): Promise<string[]>;
 }
 
 type Row = { id: string; name: string; prefix: string; role: RoleName; created_at: Date; expires_at: Date | null; revoked_at: Date | null; last_used_at: Date | null; created_by: string | null };
@@ -57,5 +59,12 @@ export class PgApiKeyRepository implements ApiKeyRepository {
       await q.query("UPDATE api_keys SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL", [id]);
       return exists;
     });
+  }
+
+  async revokedAmong(orgId: string, ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const usable = await this.db.withTenant(orgId, async (q) => new Set((await q.query<{ id: string }>(
+      "SELECT id FROM api_keys WHERE id = ANY($1::uuid[]) AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())", [ids])).rows.map((r) => r.id)));
+    return ids.filter((id) => !usable.has(id));
   }
 }

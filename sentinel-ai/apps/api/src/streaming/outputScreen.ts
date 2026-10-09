@@ -58,6 +58,12 @@ export class OutputScreen {
   /** One aggregate of every scan performed (worst decision, worst risk, union of detections). Null if nothing was scanned. */
   summary(): ScanResult | null { return this.scans.length === 0 ? null : aggregate(this.scans); }
 
+  /** Quarantine: hands over everything not yet released (scanned look-ahead and unscanned text) and stops holding it. */
+  takeHeld(): string { const held = this.buf; this.buf = ""; return held; }
+
+  /** Adds a scan made outside this screen (the quarantine scan of the whole reply) to the summary that gets audited. */
+  record(scan: ScanResult): void { this.scans.push(scan); }
+
   private async release(final: boolean): Promise<ScreenResult> {
     const r = await this.scan(this.buf);
     this.scans.push(r);

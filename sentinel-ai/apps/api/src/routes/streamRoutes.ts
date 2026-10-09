@@ -4,6 +4,7 @@ import type { AppConfig } from "../config/env.js";
 import { principalOf, requirePermission } from "../middleware/auth.js";
 import { securityHeaders } from "../middleware/hardening.js";
 import type { ApiKeyAuthenticator } from "../security/apiKeys.js";
+import type { RevocationWatcher } from "../security/revocationWatcher.js";
 import { deriveVaultSession, type TokenVault } from "../security/tokenVault.js";
 import type { SecureStreamService, StreamEvent } from "../services/secureStreamService.js";
 import { StreamBodySchema } from "../validators/schemas.js";
@@ -12,6 +13,8 @@ export interface StreamRouteDeps {
   auth: ApiKeyAuthenticator;
   streaming: SecureStreamService;
   vault?: TokenVault | undefined;
+  /** Tells a running stream that its API key was revoked (quarantine on revoke). Without it, a key is checked only at the start. */
+  revocations?: RevocationWatcher | undefined;
   config: AppConfig;
   /** Renders the non-streaming outcomes (blocked / audit unavailable) exactly like /v1/ai/chat. */
   sendOutcome: (reply: FastifyReply, outcome: never) => unknown;
@@ -32,6 +35,7 @@ export function eventFrame(e: StreamEvent): string {
     case "error":
       if (e.error === "blocked") return `event: error\ndata: ${JSON.stringify({ error: "blocked", stage: e.stage, decision: e.decision, failed_closed: e.failedClosed, reason: e.reason, event_id: e.eventId })}\n\n`;
       if (e.error === "provider_error") return `event: error\ndata: ${JSON.stringify({ error: "provider_error", code: e.code, event_id: e.eventId })}\n\n`;
+      if (e.error === "stream_quarantined") return `event: error\ndata: ${JSON.stringify({ error: "stream_quarantined", reason: e.reason, outcome: e.outcome, detail: e.detail, event_id: e.eventId })}\n\n`;
       return `event: error\ndata: ${JSON.stringify({ error: e.error })}\n\n`;
   }
 }
@@ -64,10 +68,12 @@ export function registerStreamRoutes(app: FastifyInstance, d: StreamRouteDeps): 
     let heartbeat: NodeJS.Timeout | undefined;
     try {
       const session = d.vault ? deriveVaultSession(p, b.session_id) : undefined;
+      const keyId = p.apiKeyId;
       const open = await d.streaming.open(
         p, b.provider, b.messages,
         { application: b.application, team: b.team, environment: b.environment, model: b.model, ip: req.ip, ...(session ? { vaultSession: session.id } : {}) },
-        { maxOutputTokens: b.max_output_tokens, temperature: b.temperature, hydrate: b.hydrate, mode: b.mode, signal: ctl.signal, vaultSession: session },
+        { maxOutputTokens: b.max_output_tokens, temperature: b.temperature, hydrate: b.hydrate, mode: b.mode, signal: ctl.signal, vaultSession: session,
+          ...(d.revocations && keyId ? { watchRevocation: (cb: Parameters<RevocationWatcher["watch"]>[2]) => d.revocations!.watch(p.organizationId, keyId, cb) } : {}) },
       );
       if (open.kind !== "stream") return d.sendOutcome(reply, open as never);
       dispose = open.dispose;

@@ -4,6 +4,7 @@ import type { AuditLogWriter } from "../events/auditLog.js";
 import { principalOf, requirePermission } from "../middleware/auth.js";
 import type { ApiKeyRepository } from "../repositories/apiKeyRepository.js";
 import type { ApiKeyAuthenticator } from "../security/apiKeys.js";
+import type { RevocationWatcher } from "../security/revocationWatcher.js";
 import { ROLES, roleCanGrant, type RoleName } from "../security/rbac.js";
 import { displayName } from "../validators/schemas.js";
 
@@ -15,7 +16,11 @@ const CreateBody = z.object({
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export interface ApiKeyRouteDeps { auth: ApiKeyAuthenticator; keys: ApiKeyRepository; auditLog: AuditLogWriter }
+export interface ApiKeyRouteDeps {
+  auth: ApiKeyAuthenticator; keys: ApiKeyRepository; auditLog: AuditLogWriter;
+  /** Told about every revocation, so streams open with that key on this instance are quarantined immediately. */
+  revocations?: RevocationWatcher | undefined;
+}
 
 /**
  * Key management rules (each is enforced server-side and tested):
@@ -58,6 +63,7 @@ export function registerApiKeyRoutes(app: FastifyInstance, d: ApiKeyRouteDeps): 
     if (!existing) return reply.code(404).send({ error: "not_found" });
     if (!roleCanGrant(p.role, existing.role)) return reply.code(403).send({ error: "forbidden", reason: "key_has_higher_privilege" });
     await d.keys.revoke(p.organizationId, req.params.id);
+    d.revocations?.notify(req.params.id);
     await audit(p.organizationId, p.userId, "apikey.revoke", req.params.id, { role: existing.role });
     return reply.code(204).send();
   });

@@ -15,6 +15,7 @@ import { HttpTokenVault } from "./security/tokenVault.js";
 import { SecureStreamService } from "./services/secureStreamService.js";
 import { PgAuthRepository } from "./repositories/authRepository.js";
 import { DbApiKeyAuthenticator } from "./security/apiKeys.js";
+import { RevocationWatcher } from "./security/revocationWatcher.js";
 import { CompositeAuthenticator } from "./security/authenticators.js";
 import { AccessTokens } from "./security/tokens.js";
 import { AuthService } from "./services/authService.js";
@@ -60,18 +61,20 @@ async function main(): Promise<void> {
   if (!cipher) console.warn("PROVIDER_CREDENTIAL_KEYS not set: organizations cannot store their own provider credentials");
   const routers = new OrgRouterSource({ platform: router, repo: providerRepo, cipher });
   const service = new SecureAiService({ scanner, router, routers, policies, events, vault });
+  const apiKeys = new PgApiKeyRepository(db, config.apiKeyPepper);
+  const revocations = new RevocationWatcher(apiKeys, config.stream.revocationPollMs);
   const app = buildApp({
     config, scanner, events, policies,
     ...(documents ? { documents, fileScan: new FileScanService({ documents, scanner, policies, events, files: new PgFileRepository(db) }) } : {}),
     auth: new CompositeAuthenticator(new DbApiKeyAuthenticator(db, config.apiKeyPepper), tokens, directory),
     directory, providerSettings: { repo: providerRepo, routers, cipher, platformProviders: router.ids() },
-    auditLog, apiKeys: new PgApiKeyRepository(db, config.apiKeyPepper), redTeam: new PgRedTeamRepository(db),
+    auditLog, apiKeys, revocations, redTeam: new PgRedTeamRepository(db),
     ...(authService ? { authService, signupEnabled: config.signupEnabled } : {}),
-    service, ...(vault ? { vault } : {}), streaming: new SecureStreamService({ service, vault, limits: config.stream }),
+    service, ...(vault ? { vault } : {}), streaming: new SecureStreamService({ service, vault, auditLog, limits: config.stream }),
     ping: () => db.ping(),
   });
 
-  const shutdown = async () => { await app.close(); await db.close(); process.exit(0); };
+  const shutdown = async () => { revocations.stop(); await app.close(); await db.close(); process.exit(0); };
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
   await app.listen({ port: config.port, host: "0.0.0.0" });
