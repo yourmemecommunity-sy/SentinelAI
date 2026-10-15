@@ -44,6 +44,7 @@ export class OllamaProvider implements AIProvider {
     if (req.messages.length === 0) throw new ProviderError(this.id, "bad_request", "no messages");
     return JSON.stringify({
       model, stream, messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+      ...(req.jsonOutput ? { format: "json" } : {}),
       options: {
         ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
         ...(req.maxOutputTokens !== undefined ? { num_predict: req.maxOutputTokens } : {}),

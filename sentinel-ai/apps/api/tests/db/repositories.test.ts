@@ -29,7 +29,7 @@ afterAll(async () => { await db.close(); });
 describe("RBAC map and database seed agree", () => {
   it("roles.permissions in the DB equals ROLE_PERMISSIONS in code", async () => {
     const { rows } = await db.query<{ name: string; permissions: string[] }>("SELECT name, permissions FROM roles");
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(6);   // + DEVICE_CLIENT (migration 0010)
     for (const r of rows) expect([...r.permissions].sort(), r.name).toEqual([...ROLE_PERMISSIONS[r.name as keyof typeof ROLE_PERMISSIONS]].sort());
   });
 });

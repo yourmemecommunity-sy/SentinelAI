@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "diagnostic_type": "battery_drain",
+  "locale": "en-US",
+  "consent": {
+    "cloud_analysis": true,
+    "consent_version": "2026-10-01",
+    "granted_at": "2026-10-02T08:15:00Z"
+  },
+  "client": { "app_version": "1.4.0", "android_api_level": 34 },
+  "observations": [
+    { "evidence_id": "ev_drain", "metric": "battery_drain_rate", "value": 14.5, "unit": "percent_per_hour", "observed_at": "2026-10-14T09:00:00Z" },
+    { "evidence_id": "ev_screen", "metric": "screen_on_time_24h", "value": 410, "unit": "minutes", "observed_at": "2026-10-14T09:00:00Z" },
+    { "evidence_id": "ev_wake", "metric": "wakelock_time_24h", "value": 185, "unit": "minutes", "observed_at": "2026-10-14T09:00:00Z" },
+    { "evidence_id": "ev_temp", "metric": "battery_temperature", "value": 41.2, "unit": "celsius", "observed_at": "2026-10-14T09:00:00+05:30" }
+  ],
+  "local_findings": [
+    { "finding_id": "lf_drain", "code": "high_drain_rate", "severity": "high", "evidence_ids": ["ev_drain"] },
+    { "finding_id": "lf_wake", "code": "excessive_wakelocks", "severity": "medium", "evidence_ids": ["ev_wake", "ev_screen"] }
+  ]
+}

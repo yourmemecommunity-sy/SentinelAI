@@ -2,5 +2,6 @@ packages:
   - "apps/*"
   - "services/ai-router"
   - "packages/shared-types"
+  - "packages/devicepulse-contracts"
   - "packages/security-rules"
   - "packages/sdk/javascript"

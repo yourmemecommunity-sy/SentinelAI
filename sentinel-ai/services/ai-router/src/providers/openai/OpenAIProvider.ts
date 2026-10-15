@@ -40,6 +40,7 @@ export class OpenAIProvider implements AIProvider {
       model, messages: req.messages.map((m) => ({ role: m.role, content: m.content })), stream,
       ...(req.maxOutputTokens !== undefined ? { max_completion_tokens: req.maxOutputTokens } : {}),
       ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+      ...(req.jsonOutput ? { response_format: { type: "json_object" } } : {}),
     });
   }
 

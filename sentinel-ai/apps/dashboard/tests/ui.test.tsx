@@ -159,7 +159,7 @@ describe("role/permission table shared with the gateway (what the API-keys page 
   it("a DEVELOPER may grant only DEVELOPER; ADMIN everything but OWNER; VIEWER cannot manage keys", async () => {
     const { ROLES, roleCanGrant, roleHas } = await import("@sentinelai/shared-types");
     expect(ROLES.filter((r) => roleCanGrant("DEVELOPER", r))).toEqual(["DEVELOPER"]);
-    expect(ROLES.filter((r) => roleCanGrant("ADMIN", r))).toEqual(["ADMIN", "SECURITY_ANALYST", "DEVELOPER", "VIEWER"]);
+    expect(ROLES.filter((r) => roleCanGrant("ADMIN", r))).toEqual(["ADMIN", "SECURITY_ANALYST", "DEVELOPER", "VIEWER", "DEVICE_CLIENT"]);
     expect(ROLES.filter((r) => roleCanGrant("OWNER", r))).toEqual([...ROLES]);
     expect(roleHas("VIEWER", "keys:manage")).toBe(false);
     expect(roleHas("SECURITY_ANALYST", "keys:manage")).toBe(false);

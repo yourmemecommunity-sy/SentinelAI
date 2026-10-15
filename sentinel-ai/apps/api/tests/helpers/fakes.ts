@@ -13,6 +13,7 @@ export const TEST_CONFIG: AppConfig = {
   securityEngineUrl: "http://engine.test", securityEngineToken: undefined, securityTimeoutMs: 500, securityTimeoutPerKcharMs: 60, securityTimeoutPerWindowMs: 1800, securityTimeoutJudgeMs: 4500,
   databaseUrl: undefined, geminiApiKey: undefined, openaiApiKey: undefined, anthropicApiKey: undefined, ollama: undefined, maxInputChars: 5_000, documentScanner: undefined, maxFileBytes: 200_000, vault: undefined, stream: { holdBackChars: 256, minSegmentChars: 64, idleTimeoutMs: 30_000, maxDurationMs: 300_000, maxOutputChars: 200_000, maxConcurrent: 10, quarantineRelease: true, revocationPollMs: 1000 }, rateLimitPerMinute: 1000,
   jwtAccessSecret: "j".repeat(40), accessTtlSeconds: 900, refreshTtlSeconds: 86_400, signupEnabled: true, providerCredentialKeys: undefined,
+  devicepulse: { provider: undefined, model: undefined, timeoutMs: 2_000, explainPerMinute: 1000, consentVersions: ["2026-10-01"], retentionDays: 30 },
 };
 
 export function makeScan(decision: Action, over: Partial<ScanResult> = {}): ScanResult {

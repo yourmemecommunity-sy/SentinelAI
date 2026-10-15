@@ -25,6 +25,8 @@ import { PgDirectoryRepository } from "./repositories/directoryRepository.js";
 import { PgProviderRepository } from "./repositories/providerRepository.js";
 import { OrgRouterSource } from "./providers/orgRouters.js";
 import { CredentialCipher } from "./security/credentialCipher.js";
+import { DevicePulseService } from "./devicepulse/devicePulseService.js";
+import { PgDevicePulseRepository } from "./repositories/devicePulseRepository.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -63,6 +65,14 @@ async function main(): Promise<void> {
   const service = new SecureAiService({ scanner, router, routers, policies, events, vault });
   const apiKeys = new PgApiKeyRepository(db, config.apiKeyPepper);
   const revocations = new RevocationWatcher(apiKeys, config.stream.revocationPollMs);
+  const devicePulseRepo = new PgDevicePulseRepository(db);
+  const devicePulse = new DevicePulseService({ config: config.devicepulse, secureAi: service, routers, scanner, repo: devicePulseRepo });
+  if (!config.devicepulse.provider) console.warn("DEVICEPULSE_AI_PROVIDER not set: DevicePulse remote analysis is disabled (local diagnostics in the app are unaffected)");
+  // Retention: expired DevicePulse request/feedback rows are deleted hourly (and once at start). A failed purge is logged and retried next hour.
+  const purge = () => { devicePulseRepo.purgeExpired().catch((e: unknown) => console.error("devicepulse purge failed:", (e as Error).message)); };
+  purge();
+  const purgeTimer = setInterval(purge, 3_600_000);
+  purgeTimer.unref();
   const app = buildApp({
     config, scanner, events, policies,
     ...(documents ? { documents, fileScan: new FileScanService({ documents, scanner, policies, events, files: new PgFileRepository(db) }) } : {}),
@@ -72,9 +82,10 @@ async function main(): Promise<void> {
     ...(authService ? { authService, signupEnabled: config.signupEnabled } : {}),
     service, ...(vault ? { vault } : {}), streaming: new SecureStreamService({ service, vault, auditLog, limits: config.stream }),
     ping: () => db.ping(),
+    devicepulse: { service: devicePulse, repo: devicePulseRepo },
   });
 
-  const shutdown = async () => { revocations.stop(); await app.close(); await db.close(); process.exit(0); };
+  const shutdown = async () => { revocations.stop(); clearInterval(purgeTimer); await app.close(); await db.close(); process.exit(0); };
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
   await app.listen({ port: config.port, host: "0.0.0.0" });

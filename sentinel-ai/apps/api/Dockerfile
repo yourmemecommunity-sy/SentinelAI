@@ -5,6 +5,7 @@ RUN corepack enable
 WORKDIR /repo
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/shared-types packages/shared-types
+COPY packages/devicepulse-contracts packages/devicepulse-contracts
 COPY services/ai-router services/ai-router
 COPY apps/api apps/api
 RUN pnpm install --frozen-lockfile --filter "@sentinelai/api..." \

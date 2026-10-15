@@ -39,7 +39,7 @@ export interface FileScanResponse {
 
 export interface ApiKeyInfo {
   id: string; name: string; prefix: string;
-  role: "OWNER" | "ADMIN" | "SECURITY_ANALYST" | "DEVELOPER" | "VIEWER";
+  role: "OWNER" | "ADMIN" | "SECURITY_ANALYST" | "DEVELOPER" | "VIEWER" | "DEVICE_CLIENT";
   created_at: string; expires_at: string | null; revoked_at: string | null; last_used_at: string | null; created_by: string | null;
 }
 

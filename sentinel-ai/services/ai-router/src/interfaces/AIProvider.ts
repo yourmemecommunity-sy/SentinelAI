@@ -7,6 +7,12 @@ export interface ChatRequest {
   maxOutputTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
+  /**
+   * Ask for a single JSON object, using the provider's native JSON mode where one exists (Ollama `format`, OpenAI
+   * `response_format`, Gemini `responseMimeType`). Anthropic has no equivalent in this adapter: the prompt must ask for JSON.
+   * A hint only: callers must still validate the reply.
+   */
+  jsonOutput?: boolean;
 }
 export interface GenerateRequest {
   model?: string;

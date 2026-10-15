@@ -14,6 +14,7 @@ export default defineConfig({
       // Run against workspace sources so tests do not require a prior build.
       "@sentinelai/shared-types": fileURLToPath(new URL("../../packages/shared-types/src/index.ts", import.meta.url)),
       "@sentinelai/ai-router": fileURLToPath(new URL("../../services/ai-router/src/index.ts", import.meta.url)),
+      "@sentinelai/devicepulse-contracts": fileURLToPath(new URL("../../packages/devicepulse-contracts/src/index.ts", import.meta.url)),
     },
   },
 });

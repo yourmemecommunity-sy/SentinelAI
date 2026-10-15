@@ -187,6 +187,30 @@ describe("wire formats", () => {
   });
 });
 
+describe("JSON output mode", () => {
+  const capture = async (make: (f: typeof fetch) => AIProvider, ok: unknown, req: ChatRequest) => {
+    const f = vi.fn(async () => res(ok));
+    await make(f as unknown as typeof fetch).chat(req);
+    return JSON.parse(String((f.mock.calls[0] as unknown as [string, RequestInit])[1].body)) as Record<string, unknown>;
+  };
+  const by = (n: string) => CASES.find((x) => x.name === n)!;
+
+  it("uses each provider's native JSON mode only when asked", async () => {
+    const O = by("ollama"); const C = by("openai"); const G = by("gemini");
+    expect(await capture((f) => O.make(f), O.ok, { ...REQ, jsonOutput: true })).toMatchObject({ format: "json" });
+    expect(await capture((f) => C.make(f), C.ok, { ...REQ, jsonOutput: true })).toMatchObject({ response_format: { type: "json_object" } });
+    expect(await capture((f) => G.make(f), G.ok, { ...REQ, jsonOutput: true })).toMatchObject({ generationConfig: { responseMimeType: "application/json" } });
+    expect(await capture((f) => O.make(f), O.ok, REQ)).not.toHaveProperty("format");
+    expect(await capture((f) => C.make(f), C.ok, REQ)).not.toHaveProperty("response_format");
+    expect((await capture((f) => G.make(f), G.ok, REQ)).generationConfig).not.toHaveProperty("responseMimeType");
+  });
+
+  it("anthropic has no JSON mode here: the request is unchanged", async () => {
+    const A = by("anthropic");
+    expect(await capture((f) => A.make(f), A.ok, { ...REQ, jsonOutput: true })).toEqual(await capture((f) => A.make(f), A.ok, REQ));
+  });
+});
+
 describe("base URL and key hygiene", () => {
   it("normalizeBaseUrl accepts http(s) only, refuses embedded credentials, strips trailing slashes", () => {
     expect(normalizeBaseUrl("https://x.test/v1///")).toBe("https://x.test/v1");

@@ -222,6 +222,13 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      # DevicePulse: the one provider allowed to receive diagnostic data (unset = remote analysis off; never a fallback).
+      DEVICEPULSE_AI_PROVIDER: ${DEVICEPULSE_AI_PROVIDER:-}
+      DEVICEPULSE_AI_MODEL: ${DEVICEPULSE_AI_MODEL:-}
+      DEVICEPULSE_TIMEOUT_MS: ${DEVICEPULSE_TIMEOUT_MS:-20000}
+      DEVICEPULSE_EXPLAIN_PER_MINUTE: ${DEVICEPULSE_EXPLAIN_PER_MINUTE:-10}
+      DEVICEPULSE_CONSENT_VERSIONS: ${DEVICEPULSE_CONSENT_VERSIONS:-2026-10-01}
+      DEVICEPULSE_RETENTION_DAYS: ${DEVICEPULSE_RETENTION_DAYS:-30}
     depends_on:
       migrate: { condition: service_completed_successfully }
       security-engine: { condition: service_healthy }

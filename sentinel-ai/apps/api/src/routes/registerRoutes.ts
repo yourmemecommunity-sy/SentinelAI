@@ -13,6 +13,10 @@ import { registerAuthRoutes } from "./authRoutes.js";
 import { registerDirectoryRoutes } from "./directoryRoutes.js";
 import { registerProviderRoutes } from "./providerRoutes.js";
 import { registerRedTeamRoutes } from "./redTeamRoutes.js";
+import { registerDevicePulseRoutes } from "./devicePulseRoutes.js";
+import type { DevicePulseService } from "../devicepulse/devicePulseService.js";
+import type { DevicePulseRepository } from "../repositories/devicePulseRepository.js";
+import type { RateLimiter } from "../middleware/hardening.js";
 import type { RedTeamRepository } from "../repositories/redTeamRepository.js";
 import type { DirectoryRepository } from "../repositories/directoryRepository.js";
 import type { ProviderRepository } from "../repositories/providerRepository.js";
@@ -63,6 +67,8 @@ export interface RouteDeps {
   redTeam?: RedTeamRepository;
   /** When absent, /v1/providers is not registered. */
   providerSettings?: { repo: ProviderRepository; routers: RouterSource; cipher: CredentialCipher | undefined; platformProviders: string[] };
+  /** When absent, /v1/devicepulse/* is not registered. */
+  devicepulse?: { service: DevicePulseService; repo: DevicePulseRepository; limiter?: RateLimiter };
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -107,6 +113,7 @@ export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
   if (d.directory) registerDirectoryRoutes(app, { auth: d.auth, directory: d.directory, auditLog: d.auditLog, pepper: d.config.apiKeyPepper,
     ...(d.authLimits ? { acceptLimit: d.authLimits.ipPerMinute } : {}) });
   if (d.redTeam) registerRedTeamRoutes(app, { auth: d.auth, repo: d.redTeam, auditLog: d.auditLog });
+  if (d.devicepulse) registerDevicePulseRoutes(app, { auth: d.auth, auditLog: d.auditLog, ...d.devicepulse });
   if (d.providerSettings) registerProviderRoutes(app, { auth: d.auth, auditLog: d.auditLog, ...d.providerSettings });
   if (d.authService) registerAuthRoutes(app, { authService: d.authService, auth: d.auth, signupEnabled: d.signupEnabled ?? false,
     ...(d.authLimits ? { ipLimit: d.authLimits.ipPerMinute, emailLimit: d.authLimits.emailPerMinute } : {}) });

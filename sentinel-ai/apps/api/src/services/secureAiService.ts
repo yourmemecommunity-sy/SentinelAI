@@ -167,14 +167,15 @@ export class SecureAiService {
     return hydrateText(text, (tokens) => vault.resolve(p.organizationId, vaultSession, tokens));
   }
 
-  async chat(p: Principal, provider: string, messages: ChatMessage[], meta: RequestMeta, opts: { maxOutputTokens?: number; temperature?: number; hydrate?: boolean } = {}): Promise<ChatOutcome> {
+  async chat(p: Principal, provider: string, messages: ChatMessage[], meta: RequestMeta, opts: { maxOutputTokens?: number; temperature?: number; hydrate?: boolean; providerTimeoutMs?: number; jsonOutput?: boolean } = {}): Promise<ChatOutcome> {
     const screened = await this.screenInput(p, provider, messages, meta);
     if (screened.kind !== "ready") return screened;
     const { sanitized, policy, inScan, inEventId, router } = screened;
 
     let content: string; let model: string;
+    // providerTimeoutMs: a deadline for the model call alone (the scans have their own budgets); expiry is a `timeout` ProviderError.
     try {
-      const res = await router.chat(provider, { messages: sanitized, ...(meta.model ? { model: meta.model } : {}), ...(opts.maxOutputTokens !== undefined ? { maxOutputTokens: opts.maxOutputTokens } : {}), ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}) });
+      const res = await router.chat(provider, { messages: sanitized, ...(meta.model ? { model: meta.model } : {}), ...(opts.maxOutputTokens !== undefined ? { maxOutputTokens: opts.maxOutputTokens } : {}), ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}), ...(opts.providerTimeoutMs !== undefined ? { signal: AbortSignal.timeout(opts.providerTimeoutMs) } : {}), ...(opts.jsonOutput ? { jsonOutput: true } : {}) });
       content = res.content; model = res.model;
     } catch (err) {
       if (err instanceof UnknownProviderError) return { kind: "blocked", stage: "input", decision: "BLOCK", failedClosed: true, reason: "unknown_provider", eventId: inEventId };

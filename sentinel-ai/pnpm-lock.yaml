@@ -20,6 +20,9 @@ importers:
       '@sentinelai/ai-router':
         specifier: workspace:*
         version: link:../../services/ai-router
+      '@sentinelai/devicepulse-contracts':
+        specifier: workspace:*
+        version: link:../../packages/devicepulse-contracts
       '@sentinelai/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -94,6 +97,22 @@ importers:
       tailwindcss:
         specifier: ^3.4.14
         version: 3.4.19(tsx@4.23.13)
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@20.19.43)(jsdom@25.0.1)
+
+  packages/devicepulse-contracts:
+    dependencies:
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.43
       typescript:
         specifier: ^5.6.0
         version: 5.9.3

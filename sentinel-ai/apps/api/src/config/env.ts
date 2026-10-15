@@ -46,6 +46,18 @@ const Schema = z.object({
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().min(3600).max(90 * 86400).default(30 * 86400),
   SIGNUP_ENABLED: z.enum(["true", "false"]).optional(),
   PROVIDER_CREDENTIAL_KEYS: z.string().optional(),
+  // DevicePulse: the ONE provider (and optionally model) that may receive diagnostic data. Unset -> remote analysis is off
+  // and the explain endpoint answers 503 remote_analysis_unavailable; nothing ever falls back to another provider.
+  DEVICEPULSE_AI_PROVIDER: z.string().regex(/^[a-z][a-z0-9_-]{1,31}$/).optional(),
+  DEVICEPULSE_AI_MODEL: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/).optional(),
+  /** Deadline for the model call (the security scans have their own budgets). */
+  DEVICEPULSE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(20_000),
+  /** Explanation requests per minute per credential (user or API key), on top of the per-IP limit. */
+  DEVICEPULSE_EXPLAIN_PER_MINUTE: z.coerce.number().int().min(1).max(1000).default(10),
+  /** Comma-separated consent text versions (YYYY-MM-DD) currently accepted. Removing one forces users to re-consent. */
+  DEVICEPULSE_CONSENT_VERSIONS: z.string().regex(/^\d{4}-\d{2}-\d{2}(,\d{4}-\d{2}-\d{2})*$/).default("2026-10-01"),
+  /** Days a request record (and its feedback) is kept before the purge deletes it. */
+  DEVICEPULSE_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 });
 
 export interface AppConfig {
@@ -82,6 +94,17 @@ export interface AppConfig {
   signupEnabled: boolean;
   /** Master keys for per-organization provider credentials (first = active). Absent: organizations cannot store credentials. */
   providerCredentialKeys: CredentialKey[] | undefined;
+  devicepulse: DevicePulseConfig;
+}
+
+export interface DevicePulseConfig {
+  /** Operator-chosen provider for remote analysis. undefined: remote analysis is not configured. */
+  provider: string | undefined;
+  model: string | undefined;
+  timeoutMs: number;
+  explainPerMinute: number;
+  consentVersions: string[];
+  retentionDays: number;
 }
 
 /** Parses and validates configuration. Production refuses to start with weak or missing security settings. */
@@ -138,5 +161,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // Open self-service signup is opt-in in production, on by default elsewhere.
     signupEnabled: (e.SIGNUP_ENABLED ?? (production ? "false" : "true")) === "true",
     providerCredentialKeys: e.PROVIDER_CREDENTIAL_KEYS ? parseCredentialKeys(e.PROVIDER_CREDENTIAL_KEYS) : undefined,
+    devicepulse: {
+      provider: e.DEVICEPULSE_AI_PROVIDER, model: e.DEVICEPULSE_AI_MODEL, timeoutMs: e.DEVICEPULSE_TIMEOUT_MS,
+      explainPerMinute: e.DEVICEPULSE_EXPLAIN_PER_MINUTE, consentVersions: e.DEVICEPULSE_CONSENT_VERSIONS.split(","),
+      retentionDays: e.DEVICEPULSE_RETENTION_DAYS,
+    },
   };
 }

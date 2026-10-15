@@ -63,6 +63,18 @@ spec:
             - { name: OLLAMA_BASE_URL, value: {{ .baseUrl | quote }} }
             - { name: OLLAMA_MODEL, value: {{ .model | quote }} }
             {{- end }}{{ end }}
+            {{- with $v.devicepulse }}
+            {{- if .provider }}
+            - { name: DEVICEPULSE_AI_PROVIDER, value: {{ .provider | quote }} }
+            {{- end }}
+            {{- if .model }}
+            - { name: DEVICEPULSE_AI_MODEL, value: {{ .model | quote }} }
+            {{- end }}
+            - { name: DEVICEPULSE_TIMEOUT_MS, value: {{ .timeoutMs | quote }} }
+            - { name: DEVICEPULSE_EXPLAIN_PER_MINUTE, value: {{ .explainPerMinute | quote }} }
+            - { name: DEVICEPULSE_CONSENT_VERSIONS, value: {{ .consentVersions | quote }} }
+            - { name: DEVICEPULSE_RETENTION_DAYS, value: {{ .retentionDays | quote }} }
+            {{- end }}
           {{- include "sentinel.containerSecurity" (dict "uid" 1000) | nindent 10 }}
           {{- include "sentinel.probes" (dict "ready" "/ready" "live" "/health") | nindent 10 }}
           resources: {{- toYaml $v.resources | nindent 12 }}

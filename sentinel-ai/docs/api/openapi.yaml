@@ -201,6 +201,42 @@ paths:
         Record one red-team round (implemented; evaluation:run). Counts per category and tier plus at most 40 synthetic,
         sanitized, truncated examples; append-only (409 if the round number exists). Written by scripts/security/red_team.py.
       responses: { "201": { description: recorded }, "409": { description: round_exists }, "422": { description: invalid (blocked + slipped must equal attacks) } }
+  # DevicePulse (Android diagnostics). Full field-level contract: docs/devicepulse/api-contracts.md; Zod schemas and tested
+  # examples: packages/devicepulse-contracts. Every DevicePulse error body is { error, message?, retryable?, request_id?, issues? }.
+  /v1/devicepulse/health:
+    get:
+      summary: "DevicePulse liveness and whether remote analysis is available at all (implemented; public, no organization data)"
+      security: []
+      responses: { "200": { description: "{ status: ok|degraded, service, supported_schema_versions, remote_analysis: available|unavailable }" } }
+  /v1/devicepulse/capabilities:
+    get:
+      summary: "Catalog (diagnostic types, metrics with units and bounds, finding codes, approved action ids), limits, accepted consent versions, availability for this organization (implemented; devicepulse:use)"
+      responses: { "200": { description: capabilities }, "401": { description: unauthorized }, "403": { description: forbidden } }
+  /v1/devicepulse/diagnostics/explain:
+    post:
+      summary: |
+        AI explanation of locally collected device diagnostics (implemented; devicepulse:use; body limit 16 KB). Requires
+        consent.cloud_analysis = true. No free-text field exists; client ids are replaced by server aliases before the prompt
+        is security-scanned and sent to the ONE operator-configured provider (no fallback). The reply is security-scanned and
+        validated (evidence ids, approved action ids, no links or markup) before it is returned.
+      requestBody: { content: { application/json: { schema: { type: object, additionalProperties: false, required: [schema_version, diagnostic_type, locale, consent, client, observations, local_findings] } } } }
+      responses:
+        "200": { description: "{ schema_version, request_id, status, diagnostic_type, locale, summary, findings, confidence, limitations, recommended_action_ids, disclaimer_codes, processing_mode, generated_at }" }
+        "403": { description: "forbidden | consent_required | consent_outdated | consent_expired" }
+        "413": { description: payload_too_large }
+        "422": { description: "invalid_request | unsupported_schema_version | unsupported_diagnostic_type | invalid_observation | invalid_evidence_reference | invalid_local_finding | insufficient_evidence | blocked_by_security_policy" }
+        "429": { description: rate_limited (per IP and per credential) }
+        "502": { description: "model_unavailable | model_response_invalid" }
+        "503": { description: "remote_analysis_unavailable | security_unavailable | audit_unavailable | auth_unavailable (FAILS CLOSED: nothing is sent to a model)" }
+        "504": { description: model_timeout }
+  /v1/devicepulse/diagnostics/feedback:
+    post:
+      summary: "Rate one explanation: rating and optional reason code, no free text; needs consent_to_store = true (implemented; devicepulse:use; only the credential that received the explanation)"
+      responses: { "201": { description: recorded }, "403": { description: consent_required }, "404": { description: unknown_request (identical for other users' and organizations' ids) }, "409": { description: feedback_exists }, "503": { description: audit_unavailable } }
+  /v1/devicepulse/data:
+    delete:
+      summary: "Erase every DevicePulse request record and feedback of the calling user or API key (implemented; devicepulse:use; idempotent; audit-logged with counts only)"
+      responses: { "200": { description: "{ schema_version, deleted: { requests, feedback } }" }, "503": { description: audit_unavailable } }
   /v1/policies:
     get: { summary: List policies (implemented), responses: { "200": { description: ok } } }
     post: { summary: Create policy version 1 (validated; unsafe ALLOW rules rejected) (implemented), requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/Policy" } } } }, responses: { "201": { description: created }, "422": { description: invalid } } }
@@ -450,7 +486,7 @@ components:
         refresh_token: { type: string }
         token_type: { const: Bearer }
         expires_in: { type: integer }
-        user: { type: object, properties: { id: { type: string }, organization_id: { type: string }, role: { enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] } } }
+        user: { type: object, properties: { id: { type: string }, organization_id: { type: string }, role: { enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER, DEVICE_CLIENT] } } }
     GatewayScanRequest:
       type: object
       additionalProperties: false
@@ -484,20 +520,20 @@ components:
       required: [name, role]
       properties:
         name: { type: string, minLength: 1, maxLength: 100 }
-        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] }
+        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER, DEVICE_CLIENT] }
         expires_in_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
     UserPatch:
       type: object
       minProperties: 1
       properties:
-        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] }
+        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER, DEVICE_CLIENT] }
         disabled: { type: boolean }
     InvitationRequest:
       type: object
       required: [email, role]
       properties:
         email: { type: string, format: email, maxLength: 254 }
-        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER] }
+        role: { type: string, enum: [OWNER, ADMIN, SECURITY_ANALYST, DEVELOPER, VIEWER, DEVICE_CLIENT] }
         expires_in_hours: { type: integer, minimum: 1, maximum: 168, default: 72 }
     AcceptInvitation:
       type: object

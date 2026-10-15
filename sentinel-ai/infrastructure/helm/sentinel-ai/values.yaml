@@ -34,6 +34,8 @@ api:
   rateLimitPerMinute: 600
   # Operator-configured local model (optional). Cloud provider keys come from the Secret (gemini/openai/anthropic-api-key).
   ollama: { baseUrl: "", model: "" }
+  # DevicePulse (docs/devicepulse/). provider "" = remote analysis disabled; never falls back to another provider.
+  devicepulse: { provider: "", model: "", timeoutMs: 20000, explainPerMinute: 10, consentVersions: "2026-10-01", retentionDays: 30 }
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits: { memory: 512Mi }

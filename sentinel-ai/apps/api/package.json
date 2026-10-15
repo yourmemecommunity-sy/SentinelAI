@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@sentinelai/ai-router": "workspace:*",
+    "@sentinelai/devicepulse-contracts": "workspace:*",
     "@sentinelai/shared-types": "workspace:*",
     "fastify": "^5.0.0",
     "jose": "^6.2.12",

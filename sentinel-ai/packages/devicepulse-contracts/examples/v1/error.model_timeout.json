@@ -1,0 +1,6 @@
+{
+  "error": "model_timeout",
+  "message": "The AI model did not answer in time. Local diagnostics are unaffected.",
+  "retryable": true,
+  "request_id": "0b7d6a52-5d8e-4f0e-8a3c-2e9f41c6d7a8"
+}

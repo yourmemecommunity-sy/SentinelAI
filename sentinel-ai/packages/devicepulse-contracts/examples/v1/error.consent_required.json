@@ -1,0 +1,6 @@
+{
+  "error": "consent_required",
+  "message": "Cloud analysis requires the user's explicit consent.",
+  "retryable": false,
+  "issues": [{ "path": "consent.cloud_analysis", "message": "Cloud analysis requires the user's explicit consent (true)" }]
+}
